@@ -78,36 +78,36 @@ func resourceRedshiftUserExists(d *schema.ResourceData, meta interface{}) (b boo
 func resourceRedshiftUserCreate(d *schema.ResourceData, meta interface{}) error {
 	client := meta.(*sql.DB)
 
-	var createStatement = "create user " + d.Get("username") +" with password ? "
+	var createStatement string = "create user " + d.Get("username").(string) +" with password ? "
 
-	if v, ok := d.GetOk("password_disabled"); v && ok{
+	if v, ok := d.GetOk("password_disabled"); ok && v.(bool) {
 		createStatement += " DISABLED "
 	}
 	if v, ok := d.GetOk("valid_until"); ok{
 		//TODO Validate v is in format YYYY-mm-dd
-		createStatement += "VALID UN TIL " + v
+		createStatement += "VALID UN TIL " + v.(string)
 	}
 	if v, ok := d.GetOk("createdb"); ok{
-		if v {
+		if v.(bool) {
 			createStatement += " CREATEDB "
 		} else {
 			createStatement += " NOCREATEDB "
 		}
 	}
 	if v, ok := d.GetOk("connection_limit"); ok{
-		createStatement += " CONNECTION LIMIT " + v
+		createStatement += " CONNECTION LIMIT " + v.(string)
 	}
 	if v, ok := d.GetOk("syslog_access"); ok{
-		if v == "UNRESTRICTED" {
+		if v.(string) == "UNRESTRICTED" {
 			createStatement += " SYSLOG ACCESS UNRESTRICTED "
-		} else if v == "RESTRICTED"{
+		} else if v.(string) == "RESTRICTED"{
 			createStatement += " SYSLOG ACCESS RESTRICTED "
 		} else {
 			log.Fatalf("%v is not a valid value for SYSLOG ACCESS", v)
-			panic(v)
+			panic(v.(string))
 		}
 	}
-	if v, ok := d.GetOk("superuser"); v && ok{
+	if v, ok := d.GetOk("superuser");  ok && v.(bool){
 		createStatement += " CREATEUSER "
 	}
 
@@ -115,7 +115,7 @@ func resourceRedshiftUserCreate(d *schema.ResourceData, meta interface{}) error 
 
 	if _, err := client.Exec(createStatement, d.Get("password")); err != nil {
 		log.Fatal(err)
-		return false, err
+		return err
 	}
 
 	var usesysid string
@@ -123,7 +123,7 @@ func resourceRedshiftUserCreate(d *schema.ResourceData, meta interface{}) error 
 
 	if err != nil {
 		log.Fatal(err)
-		return false, err
+		return err
 	}
 
 	d.SetId(usesysid)
@@ -148,15 +148,15 @@ func resourceRedshiftUserRead(d *schema.ResourceData, meta interface{}) error {
 
 	if err != nil {
 		log.Fatal(err)
-		return false, err
+		return err
 	}
 
 	//TODO Figure these out her
 	d.Set("username", usename)
-	if valuntil != nil {
+	if valuntil != "" {
 		d.Set("valid_until", valuntil)
 	}
-	if useconnlimit != nil {
+	if useconnlimit != "" {
 		d.Set("valid_until", valuntil)
 	}
 	d.Set("createdb", usecreatedb)
@@ -172,52 +172,52 @@ func resourceRedshiftUserUpdate(d *schema.ResourceData, meta interface{}) error 
 	if d.HasChange("username") {
 
 		oldUsername, newUsername := d.GetChange("username")
-		alterUserQuery := "alter user "+oldUsername + "rename to " + newUsername
+		alterUserQuery := "alter user "+oldUsername.(string) + "rename to " + newUsername.(string)
 
-		if _, err := client.Exec(alterUserQuery); err {
+		if _, err := client.Exec(alterUserQuery); err != nil {
 			return err
 		}
 
 		//If name changes we also need to reset the password
-		if err := resetPassword(client, d, newUsername); err {
+		if err := resetPassword(client, d, newUsername.(string)); err != nil {
 			return err
 		}
 	} else if d.HasChange("password") || d.HasChange("password_disabled") || d.HasChange("valid_until") {
-		if err := resetPassword(client, d, d.Get("username")); err {
+		if err := resetPassword(client, d, d.Get("username").(string)); err != nil {
 			return err
 		}
 	}
 
 	if d.HasChange("createdb") {
 
-		if v, ok := d.GetOk("createdb"); v && ok{
-			if _, err := client.Exec("alter user " + d.Get("username") + " createdb"); err {
+		if v, ok := d.GetOk("createdb"); ok && v.(bool) {
+			if _, err := client.Exec("alter user " + d.Get("username").(string) + " createdb"); err != nil {
 				return err
 			}
 		} else {
-			if _, err := client.Exec("alter user " + d.Get("username") + " nocreatedb"); err {
+			if _, err := client.Exec("alter user " + d.Get("username").(string) + " nocreatedb"); err != nil {
 				return err
 			}
 		}
 	}
 	//TODO What if value is removed?
 	if d.HasChange("connection_limit") {
-		if _, err := client.Exec("alter user " + d.Get("username") + " CONNECTION LIMIT " + d.Get("connection_limit")); err {
+		if _, err := client.Exec("alter user " + d.Get("username").(string) + " CONNECTION LIMIT " + d.Get("connection_limit").(string)); err !=nil {
 			return err
 		}
 	}
 	if d.HasChange("syslog_access") {
-		if _, err := client.Exec("alter user " + d.Get("username") + " SYSLOG ACCESS " + d.Get("syslog_access")); err {
+		if _, err := client.Exec("alter user " + d.Get("username").(string) + " SYSLOG ACCESS " + d.Get("syslog_access").(string)); err !=nil {
 			return err
 		}
 	}
 	if d.HasChange("superuser") {
-		if v, ok := d.GetOk("superuser"); v && ok{
-			if _, err := client.Exec("alter user " + d.Get("username") + " CREATEUSER "); err {
+		if v, ok := d.GetOk("superuser"); ok && v.(bool) {
+			if _, err := client.Exec("alter user " + d.Get("username").(string) + " CREATEUSER "); err != nil {
 				return err
 			}
 		} else {
-			if _, err := client.Exec("alter user " + d.Get("username") + " NOCREATEUSER"); err {
+			if _, err := client.Exec("alter user " + d.Get("username").(string) + " NOCREATEUSER"); err != nil{
 				return err
 			}
 		}
@@ -228,11 +228,11 @@ func resourceRedshiftUserUpdate(d *schema.ResourceData, meta interface{}) error 
 
 func resetPassword (client *sql.DB, d *schema.ResourceData, username string) error {
 
-	if v, ok := d.GetOk("password_disabled"); v && ok {
+	if v, ok := d.GetOk("password_disabled"); ok && v.(bool){
 
 		var disablePasswordQuery = "alter user " + username +" password disable"
 
-		if _, err :=client.Exec(disablePasswordQuery); err {
+		if _, err :=client.Exec(disablePasswordQuery); err != nil{
 			return err
 		}
 		return nil
@@ -240,10 +240,10 @@ func resetPassword (client *sql.DB, d *schema.ResourceData, username string) err
 	} else {
 		var resetPasswordQuery = "alter user " + username +" password ?"
 		if v, ok := d.GetOk("valid_until");ok {
-			resetPasswordQuery += " VALID UNTIL " + v
+			resetPasswordQuery += " VALID UNTIL " + v.(string)
 
 		}
-		if _, err :=client.Exec(resetPasswordQuery, d.Get("password")); err {
+		if _, err :=client.Exec(resetPasswordQuery, d.Get("password")); err != nil{
 			return err
 		}
 		return nil
@@ -272,11 +272,11 @@ func resourceRedshiftUserDelete(d *schema.ResourceData, meta interface{}) error 
 
 	client := meta.(*sql.DB)
 
-	_, err := client.Exec("drop user " + d.Get("username"))
+	_, err := client.Exec("drop user " + d.Get("username").(string))
 
 	if err != nil {
 		log.Fatal(err)
-		return false, err
+		return err
 	}
 
 	return nil

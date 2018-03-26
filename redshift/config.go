@@ -20,8 +20,7 @@ type Config struct {
 // New redshift client
 func (c *Config) Client() *sql.DB {
 
-	conninfo, err :=
-		fmt.Printf("%v:%v@tcp(%v:%v)/%v",
+	conninfo := fmt.Sprintf("%v:%v@tcp(%v:%v)/%v",
 			c.user,
 			c.password,
 			c.url,

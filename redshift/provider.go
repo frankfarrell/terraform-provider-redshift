@@ -12,22 +12,29 @@ func Provider() terraform.ResourceProvider {
 			"url": {
 				Type:        schema.TypeString,
 				Description: "Redshift url",
+				Required: true,
 			},
 			"user": {
 				Type:        schema.TypeString,
 				Description: "master user",
+				Required: true,
 			},
 			"password": {
 				Type:        schema.TypeString,
 				Description: "master password",
+				Required: true,
 			},
 			"port": {
-				Type:        schema.TypeInt,
+				Type:        schema.TypeString,
 				Description: "port",
+				Optional: true,
+				Default:  "5439",
 			},
 			"database": {
 				Type:        schema.TypeString,
 				Description: "default database",
+				Optional: true,
+				Default:  "dev",
 			},
 		},
 		ResourcesMap: map[string]*schema.Resource{
