@@ -1,19 +1,18 @@
 package redshift
 
-
 import (
-	_ "github.com/lib/pq"
 	"database/sql"
-	"log"
 	"fmt"
+	_ "github.com/lib/pq"
+	"log"
 )
 
 // Config holds API and APP keys to authenticate to Datadog.
 type Config struct {
-	url string
-	user string
+	url      string
+	user     string
 	password string
-	port int
+	port     int
 	database string
 }
 
@@ -21,11 +20,11 @@ type Config struct {
 func (c *Config) Client() *sql.DB {
 
 	conninfo := fmt.Sprintf("%v:%v@tcp(%v:%v)/%v",
-			c.user,
-			c.password,
-			c.url,
-			c.port,
-			c.database)
+		c.user,
+		c.password,
+		c.url,
+		c.port,
+		c.database)
 
 	db, err := sql.Open("postgres", conninfo)
 

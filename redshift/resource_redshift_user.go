@@ -1,9 +1,9 @@
 package redshift
 
 import (
+	"database/sql"
 	"github.com/hashicorp/terraform/helper/schema"
 	"log"
-	"database/sql"
 )
 
 func redshiftUser() *schema.Resource {
@@ -78,36 +78,36 @@ func resourceRedshiftUserExists(d *schema.ResourceData, meta interface{}) (b boo
 func resourceRedshiftUserCreate(d *schema.ResourceData, meta interface{}) error {
 	client := meta.(*sql.DB)
 
-	var createStatement string = "create user " + d.Get("username").(string) +" with password ? "
+	var createStatement string = "create user " + d.Get("username").(string) + " with password ? "
 
 	if v, ok := d.GetOk("password_disabled"); ok && v.(bool) {
 		createStatement += " DISABLED "
 	}
-	if v, ok := d.GetOk("valid_until"); ok{
+	if v, ok := d.GetOk("valid_until"); ok {
 		//TODO Validate v is in format YYYY-mm-dd
 		createStatement += "VALID UN TIL " + v.(string)
 	}
-	if v, ok := d.GetOk("createdb"); ok{
+	if v, ok := d.GetOk("createdb"); ok {
 		if v.(bool) {
 			createStatement += " CREATEDB "
 		} else {
 			createStatement += " NOCREATEDB "
 		}
 	}
-	if v, ok := d.GetOk("connection_limit"); ok{
+	if v, ok := d.GetOk("connection_limit"); ok {
 		createStatement += " CONNECTION LIMIT " + v.(string)
 	}
-	if v, ok := d.GetOk("syslog_access"); ok{
+	if v, ok := d.GetOk("syslog_access"); ok {
 		if v.(string) == "UNRESTRICTED" {
 			createStatement += " SYSLOG ACCESS UNRESTRICTED "
-		} else if v.(string) == "RESTRICTED"{
+		} else if v.(string) == "RESTRICTED" {
 			createStatement += " SYSLOG ACCESS RESTRICTED "
 		} else {
 			log.Fatalf("%v is not a valid value for SYSLOG ACCESS", v)
 			panic(v.(string))
 		}
 	}
-	if v, ok := d.GetOk("superuser");  ok && v.(bool){
+	if v, ok := d.GetOk("superuser"); ok && v.(bool) {
 		createStatement += " CREATEUSER "
 	}
 
@@ -136,14 +136,14 @@ func resourceRedshiftUserRead(d *schema.ResourceData, meta interface{}) error {
 	client := meta.(*sql.DB)
 
 	var (
-		usename string
-		usecreatedb bool
-		usesuper bool
-		valuntil string
+		usename      string
+		usecreatedb  bool
+		usesuper     bool
+		valuntil     string
 		useconnlimit string
 	)
 
-	err := client.QueryRow("select usename, usecreatedb, usesuper, valuntil, useconnlimit " +
+	err := client.QueryRow("select usename, usecreatedb, usesuper, valuntil, useconnlimit "+
 		"from pg_user_info where usesysid = ?", d.Id()).Scan(&usename, &usecreatedb, &usesuper, &valuntil, &useconnlimit)
 
 	if err != nil {
@@ -172,7 +172,7 @@ func resourceRedshiftUserUpdate(d *schema.ResourceData, meta interface{}) error 
 	if d.HasChange("username") {
 
 		oldUsername, newUsername := d.GetChange("username")
-		alterUserQuery := "alter user "+oldUsername.(string) + "rename to " + newUsername.(string)
+		alterUserQuery := "alter user " + oldUsername.(string) + "rename to " + newUsername.(string)
 
 		if _, err := client.Exec(alterUserQuery); err != nil {
 			return err
@@ -202,12 +202,12 @@ func resourceRedshiftUserUpdate(d *schema.ResourceData, meta interface{}) error 
 	}
 	//TODO What if value is removed?
 	if d.HasChange("connection_limit") {
-		if _, err := client.Exec("alter user " + d.Get("username").(string) + " CONNECTION LIMIT " + d.Get("connection_limit").(string)); err !=nil {
+		if _, err := client.Exec("alter user " + d.Get("username").(string) + " CONNECTION LIMIT " + d.Get("connection_limit").(string)); err != nil {
 			return err
 		}
 	}
 	if d.HasChange("syslog_access") {
-		if _, err := client.Exec("alter user " + d.Get("username").(string) + " SYSLOG ACCESS " + d.Get("syslog_access").(string)); err !=nil {
+		if _, err := client.Exec("alter user " + d.Get("username").(string) + " SYSLOG ACCESS " + d.Get("syslog_access").(string)); err != nil {
 			return err
 		}
 	}
@@ -217,7 +217,7 @@ func resourceRedshiftUserUpdate(d *schema.ResourceData, meta interface{}) error 
 				return err
 			}
 		} else {
-			if _, err := client.Exec("alter user " + d.Get("username").(string) + " NOCREATEUSER"); err != nil{
+			if _, err := client.Exec("alter user " + d.Get("username").(string) + " NOCREATEUSER"); err != nil {
 				return err
 			}
 		}
@@ -226,24 +226,24 @@ func resourceRedshiftUserUpdate(d *schema.ResourceData, meta interface{}) error 
 	return resourceRedshiftUserRead(d, meta)
 }
 
-func resetPassword (client *sql.DB, d *schema.ResourceData, username string) error {
+func resetPassword(client *sql.DB, d *schema.ResourceData, username string) error {
 
-	if v, ok := d.GetOk("password_disabled"); ok && v.(bool){
+	if v, ok := d.GetOk("password_disabled"); ok && v.(bool) {
 
-		var disablePasswordQuery = "alter user " + username +" password disable"
+		var disablePasswordQuery = "alter user " + username + " password disable"
 
-		if _, err :=client.Exec(disablePasswordQuery); err != nil{
+		if _, err := client.Exec(disablePasswordQuery); err != nil {
 			return err
 		}
 		return nil
 
 	} else {
-		var resetPasswordQuery = "alter user " + username +" password ?"
-		if v, ok := d.GetOk("valid_until");ok {
+		var resetPasswordQuery = "alter user " + username + " password ?"
+		if v, ok := d.GetOk("valid_until"); ok {
 			resetPasswordQuery += " VALID UNTIL " + v.(string)
 
 		}
-		if _, err :=client.Exec(resetPasswordQuery, d.Get("password")); err != nil{
+		if _, err := client.Exec(resetPasswordQuery, d.Get("password")); err != nil {
 			return err
 		}
 		return nil
@@ -253,22 +253,22 @@ func resetPassword (client *sql.DB, d *schema.ResourceData, username string) err
 func resourceRedshiftUserDelete(d *schema.ResourceData, meta interface{}) error {
 
 	/*
-	NB BIG TODO!!!
+		NB BIG TODO!!!
 
-	https://docs.aws.amazon.com/redshift/latest/dg/r_DROP_USER.html
-	If a user owns an object, first drop the object or change its ownership to another user before dropping
-	the original user. If the user has privileges for an object, first revoke the privileges before dropping
-	the user. The following example shows dropping an object, changing ownership, and revoking privileges
-	before dropping the user
+		https://docs.aws.amazon.com/redshift/latest/dg/r_DROP_USER.html
+		If a user owns an object, first drop the object or change its ownership to another user before dropping
+		the original user. If the user has privileges for an object, first revoke the privileges before dropping
+		the user. The following example shows dropping an object, changing ownership, and revoking privileges
+		before dropping the user
 
-	Ideally, these dependencies would be managed by TF. So a schema has an owner (which can be changed without force destroy)
-	But you can't have a schema without an owner for instance
+		Ideally, these dependencies would be managed by TF. So a schema has an owner (which can be changed without force destroy)
+		But you can't have a schema without an owner for instance
 
-	So suppose you delete bob who owns schema X.
-	First change owner of schema X to mary.
-	Then delete Bob
-	Permissions will be modelled as TF resources too.
-	 */
+		So suppose you delete bob who owns schema X.
+		First change owner of schema X to mary.
+		Then delete Bob
+		Permissions will be modelled as TF resources too.
+	*/
 
 	client := meta.(*sql.DB)
 

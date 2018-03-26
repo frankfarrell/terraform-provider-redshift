@@ -12,29 +12,29 @@ func Provider() terraform.ResourceProvider {
 			"url": {
 				Type:        schema.TypeString,
 				Description: "Redshift url",
-				Required: true,
+				Required:    true,
 			},
 			"user": {
 				Type:        schema.TypeString,
 				Description: "master user",
-				Required: true,
+				Required:    true,
 			},
 			"password": {
 				Type:        schema.TypeString,
 				Description: "master password",
-				Required: true,
+				Required:    true,
 			},
 			"port": {
 				Type:        schema.TypeString,
 				Description: "port",
-				Optional: true,
-				Default:  "5439",
+				Optional:    true,
+				Default:     "5439",
 			},
 			"database": {
 				Type:        schema.TypeString,
 				Description: "default database",
-				Optional: true,
-				Default:  "dev",
+				Optional:    true,
+				Default:     "dev",
 			},
 		},
 		ResourcesMap: map[string]*schema.Resource{
@@ -47,10 +47,10 @@ func Provider() terraform.ResourceProvider {
 func providerConfigure(d *schema.ResourceData) (interface{}, error) {
 
 	config := Config{
-		url: d.Get("url").(string),
-		user: d.Get("user").(string),
+		url:      d.Get("url").(string),
+		user:     d.Get("user").(string),
 		password: d.Get("password").(string),
-		port: d.Get("port").(int),
+		port:     d.Get("port").(int),
 		database: d.Get("database").(string),
 	}
 
