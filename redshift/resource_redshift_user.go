@@ -68,7 +68,9 @@ func resourceRedshiftUserExists(d *schema.ResourceData, meta interface{}) (b boo
 	// and lowers the burden of Read to be able to assume the resource exists.
 	client := meta.(*sql.DB)
 
-	err := client.QueryRow("SELECT * FROM pg_user_info WHERE usesysid = ?", d.Id()).Scan()
+	var name string
+
+	err := client.QueryRow("SELECT usename FROM pg_user_info WHERE usesysid = $1", d.Id()).Scan(&name)
 	if err != nil {
 		return false, err
 	}
@@ -78,14 +80,14 @@ func resourceRedshiftUserExists(d *schema.ResourceData, meta interface{}) (b boo
 func resourceRedshiftUserCreate(d *schema.ResourceData, meta interface{}) error {
 	client := meta.(*sql.DB)
 
-	var createStatement string = "create user " + d.Get("username").(string) + " with password ? "
+	var createStatement string = "create user " + d.Get("username").(string) + " with password '" + d.Get("password").(string)+ "' "
 
 	if v, ok := d.GetOk("password_disabled"); ok && v.(bool) {
 		createStatement += " DISABLED "
 	}
 	if v, ok := d.GetOk("valid_until"); ok {
 		//TODO Validate v is in format YYYY-mm-dd
-		createStatement += "VALID UN TIL " + v.(string)
+		createStatement += "VALID UNTIL '" + v.(string) +"'"
 	}
 	if v, ok := d.GetOk("createdb"); ok {
 		if v.(bool) {
@@ -111,15 +113,14 @@ func resourceRedshiftUserCreate(d *schema.ResourceData, meta interface{}) error 
 		createStatement += " CREATEUSER "
 	}
 
-	_, err := client.Exec(createStatement, d.Get("username"), d.Get("password"))
 
-	if _, err := client.Exec(createStatement, d.Get("password")); err != nil {
+	if _, err := client.Exec(createStatement); err != nil {
 		log.Fatal(err)
 		return err
 	}
 
 	var usesysid string
-	err = client.QueryRow("SELECT usesysid FROM pg_user_info WHERE usename = ?", d.Get("username")).Scan(&usesysid)
+	err := client.QueryRow("SELECT usesysid FROM pg_user_info WHERE usename = $1", d.Get("username").(string)).Scan(&usesysid)
 
 	if err != nil {
 		log.Fatal(err)
@@ -139,28 +140,33 @@ func resourceRedshiftUserRead(d *schema.ResourceData, meta interface{}) error {
 		usename      string
 		usecreatedb  bool
 		usesuper     bool
-		valuntil     string
-		useconnlimit string
+		valuntil     sql.NullString
+		useconnlimit sql.NullString
 	)
 
 	err := client.QueryRow("select usename, usecreatedb, usesuper, valuntil, useconnlimit "+
-		"from pg_user_info where usesysid = ?", d.Id()).Scan(&usename, &usecreatedb, &usesuper, &valuntil, &useconnlimit)
+		"from pg_user_info where usesysid = $1", d.Id()).Scan(&usename, &usecreatedb, &usesuper, &valuntil, &useconnlimit)
 
 	if err != nil {
 		log.Fatal(err)
 		return err
 	}
 
-	//TODO Figure these out her
 	d.Set("username", usename)
-	if valuntil != "" {
-		d.Set("valid_until", valuntil)
-	}
-	if useconnlimit != "" {
-		d.Set("valid_until", valuntil)
-	}
 	d.Set("createdb", usecreatedb)
-	d.Set("connection_limit", useconnlimit)
+	d.Set("superuser", usesuper)
+
+	if valuntil.Valid {
+		d.Set("valid_until", valuntil.String)
+	} else {
+		d.Set("valid_until", nil)
+	}
+
+	if useconnlimit.Valid {
+		d.Set("connection_limit", useconnlimit.String)
+	} else {
+		d.Set("connection_limit", nil)
+	}
 
 	return nil
 }
@@ -238,12 +244,12 @@ func resetPassword(client *sql.DB, d *schema.ResourceData, username string) erro
 		return nil
 
 	} else {
-		var resetPasswordQuery = "alter user " + username + " password ?"
+		var resetPasswordQuery = "alter user " + username + " password '" + d.Get("password").(string) + "' "
 		if v, ok := d.GetOk("valid_until"); ok {
-			resetPasswordQuery += " VALID UNTIL " + v.(string)
+			resetPasswordQuery += " VALID UNTIL '" + v.(string) + "'"
 
 		}
-		if _, err := client.Exec(resetPasswordQuery, d.Get("password")); err != nil {
+		if _, err := client.Exec(resetPasswordQuery); err != nil {
 			return err
 		}
 		return nil

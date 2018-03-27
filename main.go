@@ -1,11 +1,15 @@
-package terraform_provider_redshift
+package main
 
 import (
-	"github.com/frankfarrell/terraform-provider-redshift/redshift"
 	"github.com/hashicorp/terraform/plugin"
+	"github.com/hashicorp/terraform/terraform"
+	"github.com/frankfarrell/terraform-provider-redshift/redshift"
 )
 
 func main() {
 	plugin.Serve(&plugin.ServeOpts{
-		ProviderFunc: redshift.Provider})
+		ProviderFunc: func() terraform.ResourceProvider {
+			return redshift.Provider()
+		},
+	})
 }

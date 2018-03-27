@@ -50,7 +50,7 @@ func providerConfigure(d *schema.ResourceData) (interface{}, error) {
 		url:      d.Get("url").(string),
 		user:     d.Get("user").(string),
 		password: d.Get("password").(string),
-		port:     d.Get("port").(int),
+		port:     d.Get("port").(string),
 		database: d.Get("database").(string),
 	}
 
