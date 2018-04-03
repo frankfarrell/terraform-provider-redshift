@@ -178,7 +178,7 @@ func resourceRedshiftUserUpdate(d *schema.ResourceData, meta interface{}) error 
 	if d.HasChange("username") {
 
 		oldUsername, newUsername := d.GetChange("username")
-		alterUserQuery := "alter user " + oldUsername.(string) + "rename to " + newUsername.(string)
+		alterUserQuery := "alter user " + oldUsername.(string) + " rename to " + newUsername.(string)
 
 		if _, err := client.Exec(alterUserQuery); err != nil {
 			return err

@@ -1,0 +1,165 @@
+package redshift
+
+//https://docs.aws.amazon.com/redshift/latest/dg/r_CREATE_DATABASE.html
+//https://docs.aws.amazon.com/redshift/latest/dg/r_DROP_DATABASE.html
+//https://docs.aws.amazon.com/redshift/latest/dg/r_ALTER_DATABASE.html
+
+import (
+	"database/sql"
+	"github.com/hashicorp/terraform/helper/schema"
+	"log"
+)
+
+func redshiftDatabase() *schema.Resource {
+	return &schema.Resource{
+		Create: resourceRedshiftDatabaseCreate,
+		Read:   resourceRedshiftDatabaseRead,
+		Update: resourceRedshiftDatabaseUpdate,
+		Delete: resourceRedshiftDatabaseDelete,
+		Exists: resourceRedshiftDatabaseExists,
+		Importer: &schema.ResourceImporter{
+			State: resourceRedshiftDatabaseImport,
+		},
+
+		Schema: map[string]*schema.Schema{
+			"database_name": { //This isn't immutable. The usesysid returned should be used as the id
+				Type:     schema.TypeString,
+				Required: true,
+			},
+			"owner": {
+				Type:     schema.TypeString,
+				Optional: true,
+			},
+			"connection_limit": { //Cluster limit is 500
+				Type:     schema.TypeString,
+				Optional: true,
+				Default:  "UNLIMITED",
+			},
+		},
+	}
+}
+
+func resourceRedshiftDatabaseExists(d *schema.ResourceData, meta interface{}) (b bool, e error) {
+	// Exists - This is called to verify a resource still exists. It is called prior to Read,
+	// and lowers the burden of Read to be able to assume the resource exists.
+	client := meta.(*sql.DB)
+
+	var name string
+
+	err := client.QueryRow("SELECT datname FROM pg_database_info WHERE datid = $1", d.Id()).Scan(&name)
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func resourceRedshiftDatabaseCreate(d *schema.ResourceData, meta interface{}) error {
+	client := meta.(*sql.DB)
+
+	var createStatement string = "create database " + d.Get("database_name").(string)
+
+	if v, ok := d.GetOk("owner"); ok {
+		createStatement += " OWNER " + v.(string)
+	}
+	if v, ok := d.GetOk("connection_limit"); ok {
+		createStatement += " CONNECTION LIMIT " + v.(string)
+	}
+
+	if _, err := client.Exec(createStatement); err != nil {
+		log.Fatal(err)
+		return err
+	}
+
+	var datid string
+	err := client.QueryRow("SELECT datid FROM pg_database_info WHERE datname = $1", d.Get("database_name").(string)).Scan(&datid)
+
+	if err != nil {
+		log.Fatal(err)
+		return err
+	}
+
+	d.SetId(datid)
+
+	return resourceRedshiftDatabaseRead(d, meta)
+}
+
+func resourceRedshiftDatabaseRead(d *schema.ResourceData, meta interface{}) error {
+
+	client := meta.(*sql.DB)
+
+	var (
+		databasename 		string
+		owner		string
+		connlimit 	sql.NullString
+	)
+
+	err := client.QueryRow("select datname, usename, datconnlimit from pg_database_info, pg_user_info where datdba=usesysid and datid = $1", d.Id()).Scan(&databasename, &owner, &connlimit)
+
+	if err != nil {
+		log.Fatal(err)
+		return err
+	}
+
+	d.Set("database_name", databasename)
+	d.Set("owner", owner)
+
+	if connlimit.Valid {
+		d.Set("connection_limit", connlimit.String)
+	} else {
+		d.Set("connection_limit", nil)
+	}
+
+	return nil
+}
+
+func resourceRedshiftDatabaseUpdate(d *schema.ResourceData, meta interface{}) error {
+
+	client := meta.(*sql.DB)
+
+	if d.HasChange("database_name") {
+
+		oldName, newName := d.GetChange("database_name")
+		alterDatabaseNameQuery := "ALTER DATABASE " + oldName.(string) + " rename to " + newName.(string)
+
+		if _, err := client.Exec(alterDatabaseNameQuery); err != nil {
+			return err
+		}
+	}
+
+	if d.HasChange("owner") {
+
+		if _, err := client.Exec("ALTER DATABASE " + d.Get("database_name").(string) + " OWNER TO " + d.Get("owner").(string)); err != nil {
+			return err
+		}
+	}
+
+	//TODO What if value is removed?
+	if d.HasChange("connection_limit") {
+		if _, err := client.Exec("ALTER DATABASE " + d.Get("username").(string) + " CONNECTION LIMIT " + d.Get("connection_limit").(string)); err != nil {
+			return err
+		}
+	}
+
+	return resourceRedshiftDatabaseRead(d, meta)
+}
+
+func resourceRedshiftDatabaseDelete(d *schema.ResourceData, meta interface{}) error {
+
+	client := meta.(*sql.DB)
+
+	_, err := client.Exec("drop database " + d.Get("database_name").(string))
+
+	if err != nil {
+		log.Fatal(err)
+		return err
+	}
+
+	return nil
+}
+
+func resourceRedshiftDatabaseImport(d *schema.ResourceData, meta interface{}) ([]*schema.ResourceData, error) {
+	if err := resourceRedshiftDatabaseRead(d, meta); err != nil {
+		return nil, err
+	}
+	return []*schema.ResourceData{d}, nil
+}
