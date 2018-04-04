@@ -39,6 +39,8 @@ func Provider() terraform.ResourceProvider {
 		},
 		ResourcesMap: map[string]*schema.Resource{
 			"redshift_user": redshiftUser(),
+			"redshift_group": redshiftGroup(),
+			"redshift_database" : redshiftDatabase(),
 		},
 		ConfigureFunc: providerConfigure,
 	}

@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"github.com/hashicorp/terraform/helper/schema"
 	"log"
+	"fmt"
+	"strings"
 )
 
 func redshiftUser() *schema.Resource {
@@ -293,4 +295,44 @@ func resourceRedshiftUserImport(d *schema.ResourceData, meta interface{}) ([]*sc
 		return nil, err
 	}
 	return []*schema.ResourceData{d}, nil
+}
+
+func GetUsersnamesForUsesysid(client *sql.DB, usersIdsInterface []interface{}) []string {
+
+	var usersIds = make([]int, 0)
+
+	for _, v := range usersIdsInterface {
+		usersIds = append(usersIds, v.(int))
+	}
+
+	var usernames []string
+
+	//I couldnt figure out how to pass a slice to go sql
+	var selectUserQuery string = fmt.Sprintf("select usename from pg_user_info where usesysid in (%s)", strings.Trim(strings.Join(strings.Fields(fmt.Sprint(usersIds)), ","), "[]"))
+
+	log.Print("Select user query: " + selectUserQuery)
+
+	rows, err := client.Query(selectUserQuery)
+	if err != nil {
+		// handle this error better than this
+		panic(err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var username string
+		err = rows.Scan(&username)
+		if err != nil {
+			// handle this error
+			panic(err)
+		}
+
+		usernames = append(usernames, username)
+	}
+	// get any error encountered during iteration
+	err = rows.Err()
+	if err != nil {
+		panic(err)
+	}
+
+	return usernames
 }

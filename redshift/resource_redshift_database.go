@@ -27,8 +27,8 @@ func redshiftDatabase() *schema.Resource {
 				Required: true,
 			},
 			"owner": {
-				Type:     schema.TypeString,
-				Optional: true,
+				Type:     schema.TypeInt,
+				Required: true,
 			},
 			"connection_limit": { //Cluster limit is 500
 				Type:     schema.TypeString,
@@ -59,11 +59,15 @@ func resourceRedshiftDatabaseCreate(d *schema.ResourceData, meta interface{}) er
 	var createStatement string = "create database " + d.Get("database_name").(string)
 
 	if v, ok := d.GetOk("owner"); ok {
-		createStatement += " OWNER " + v.(string)
+
+		var usernames = GetUsersnamesForUsesysid(client, []interface{}{v.(int)})
+		createStatement += " OWNER " + usernames[0]
 	}
 	if v, ok := d.GetOk("connection_limit"); ok {
 		createStatement += " CONNECTION LIMIT " + v.(string)
 	}
+
+	log.Print("Create database statement: " + createStatement)
 
 	if _, err := client.Exec(createStatement); err != nil {
 		log.Fatal(err)
@@ -88,12 +92,12 @@ func resourceRedshiftDatabaseRead(d *schema.ResourceData, meta interface{}) erro
 	client := meta.(*sql.DB)
 
 	var (
-		databasename 		string
-		owner		string
+		databasename 	string
+		owner		int
 		connlimit 	sql.NullString
 	)
 
-	err := client.QueryRow("select datname, usename, datconnlimit from pg_database_info, pg_user_info where datdba=usesysid and datid = $1", d.Id()).Scan(&databasename, &owner, &connlimit)
+	err := client.QueryRow("select datname, datdba, datconnlimit from pg_database_info where datid = $1", d.Id()).Scan(&databasename, &owner, &connlimit)
 
 	if err != nil {
 		log.Fatal(err)
@@ -128,14 +132,16 @@ func resourceRedshiftDatabaseUpdate(d *schema.ResourceData, meta interface{}) er
 
 	if d.HasChange("owner") {
 
-		if _, err := client.Exec("ALTER DATABASE " + d.Get("database_name").(string) + " OWNER TO " + d.Get("owner").(string)); err != nil {
+		var username = GetUsersnamesForUsesysid(client, []interface{}{d.Get("owner").(int)})
+
+		if _, err := client.Exec("ALTER DATABASE " + d.Get("database_name").(string) + " OWNER TO " + username[0]); err != nil {
 			return err
 		}
 	}
 
 	//TODO What if value is removed?
 	if d.HasChange("connection_limit") {
-		if _, err := client.Exec("ALTER DATABASE " + d.Get("username").(string) + " CONNECTION LIMIT " + d.Get("connection_limit").(string)); err != nil {
+		if _, err := client.Exec("ALTER DATABASE " + d.Get("database_name").(string) + " CONNECTION LIMIT " + d.Get("connection_limit").(string)); err != nil {
 			return err
 		}
 	}

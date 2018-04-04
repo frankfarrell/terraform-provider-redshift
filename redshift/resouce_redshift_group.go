@@ -6,7 +6,6 @@ import (
 	"log"
 	"strings"
 	"strconv"
-	"reflect"
 )
 
 //name and list of users
@@ -62,7 +61,7 @@ func resourceRedshiftGroupCreate(d *schema.ResourceData, meta interface{}) error
 
 	if v, ok := d.GetOk("users"); ok {
 
-		var usernames = GetUsersnameForUsesysid(client, v.(*schema.Set).List())
+		var usernames = GetUsersnamesForUsesysid(client, v.(*schema.Set).List())
 
 		createStatement += " WITH USERS " + strings.Join(usernames, ", ")
 	}
@@ -106,7 +105,7 @@ func resourceRedshiftGroupRead(d *schema.ResourceData, meta interface{}) error {
 	//Notes on postgres array types https://gist.github.com/adharris/4163702, eg startying with underscore _int4
 
 	if users.Valid {
-		var userIdsAsString = strings.Split(users.String[1:len(users.String)-1], ',')
+		var userIdsAsString = strings.Split(users.String[1:len(users.String)-1], ",")
 		var userIdsAsInt = []int{}
 
 		for _, i := range userIdsAsString {
@@ -148,7 +147,7 @@ func resourceRedshiftGroupUpdate(d *schema.ResourceData, meta interface{}) error
 
 		if len(usersRemoved) > 0 {
 
-			var usersRemovedAsString = GetUsersnameForUsesysid(client, usersRemoved)
+			var usersRemovedAsString = GetUsersnamesForUsesysid(client, usersRemoved)
 
 			if _, err := client.Exec("ALTER GROUP " + d.Get("group_name").(string) + " DROP USER " +  strings.Join(usersRemovedAsString, ", ")); err != nil {
 				return err
@@ -156,7 +155,7 @@ func resourceRedshiftGroupUpdate(d *schema.ResourceData, meta interface{}) error
 		}
 		if len(usersAdded) > 0 {
 
-			var usersAddedAsString = GetUsersnameForUsesysid(client, usersAdded)
+			var usersAddedAsString = GetUsersnamesForUsesysid(client, usersAdded)
 
 			if _, err := client.Exec("ALTER GROUP " + d.Get("group_name").(string) + " ADD USER " +  strings.Join(usersAddedAsString, ", ")); err != nil {
 				return err
@@ -188,48 +187,16 @@ func resourceRedshiftGroupImport(d *schema.ResourceData, meta interface{}) ([]*s
 	return []*schema.ResourceData{d}, nil
 }
 
-func GetUsersnameForUsesysid(client *sql.DB, usersIds []int) []string {
-
-	var usernames []string
-
-	var selectUserQuery = "select usename from pg_user_info where usesysid in (" +
-		"?" + strings.Repeat(",?", len(usersIds)-1) +
-		")"
-	rows, err := client.Query(selectUserQuery, usersIds)
-	if err != nil {
-		// handle this error better than this
-		panic(err)
-	}
-	defer rows.Close()
-	for rows.Next() {
-		var username string
-		err = rows.Scan(&username)
-		if err != nil {
-			// handle this error
-			panic(err)
-		}
-
-		usernames = append(usernames, username)
-	}
-	// get any error encountered during iteration
-	err = rows.Err()
-	if err != nil {
-		panic(err)
-	}
-
-	return usernames
-}
 
 // Complexity: O(n^2)
 // Returns a minus b
 // Inspired by https://github.com/juliangruber/go-intersect/blob/master/intersect.go
-func difference(a interface{}, b interface{}) interface{} {
+func difference(a []interface{}, b []interface{}) []interface{} {
 
 	set := make([]interface{}, 0)
-	av := reflect.ValueOf(a)
 
-	for i := 0; i < av.Len(); i++ {
-		el := av.Index(i).Interface()
+	for i := 0; i < len(a); i++ {
+		el := a[i].(int)
 		if !contains(b, el) {
 			set = append(set, el)
 		}
@@ -238,11 +205,10 @@ func difference(a interface{}, b interface{}) interface{} {
 	return set
 }
 
-func contains(a interface{}, e interface{}) bool {
-	v := reflect.ValueOf(a)
+func contains(v []interface{}, e interface{}) bool {
 
-	for i := 0; i < v.Len(); i++ {
-		if v.Index(i).Interface() == e {
+	for i := 0; i < len(v); i++ {
+		if v[i].(int) == e {
 			return true
 		}
 	}
