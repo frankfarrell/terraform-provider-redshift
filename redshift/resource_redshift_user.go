@@ -6,6 +6,7 @@ import (
 	"log"
 	"fmt"
 	"strings"
+	"time"
 )
 
 func redshiftUser() *schema.Resource {
@@ -120,6 +121,9 @@ func resourceRedshiftUserCreate(d *schema.ResourceData, meta interface{}) error 
 		log.Fatal(err)
 		return err
 	}
+
+	//The changes do not propagate instantly
+	time.Sleep(5 * time.Second)
 
 	var usesysid string
 	err := client.QueryRow("SELECT usesysid FROM pg_user_info WHERE usename = $1", d.Get("username").(string)).Scan(&usesysid)

@@ -8,6 +8,7 @@ import (
 	"database/sql"
 	"github.com/hashicorp/terraform/helper/schema"
 	"log"
+	"time"
 )
 
 func redshiftDatabase() *schema.Resource {
@@ -73,6 +74,9 @@ func resourceRedshiftDatabaseCreate(d *schema.ResourceData, meta interface{}) er
 		log.Fatal(err)
 		return err
 	}
+
+	//The changes do not propagate instantly
+	time.Sleep(5 * time.Second)
 
 	var datid string
 	err := client.QueryRow("SELECT datid FROM pg_database_info WHERE datname = $1", d.Get("database_name").(string)).Scan(&datid)

@@ -6,6 +6,7 @@ import (
 	"log"
 	"strings"
 	"strconv"
+	"time"
 )
 
 //name and list of users
@@ -34,7 +35,6 @@ func redshiftGroup() *schema.Resource {
 				Type:     schema.TypeSet,
 				Optional: true,
 				Elem:     &schema.Schema{Type: schema.TypeInt},
-				Set:      schema.HashString,
 			},
 		},
 	}
@@ -63,15 +63,22 @@ func resourceRedshiftGroupCreate(d *schema.ResourceData, meta interface{}) error
 
 		var usernames = GetUsersnamesForUsesysid(client, v.(*schema.Set).List())
 
-		createStatement += " WITH USERS " + strings.Join(usernames, ", ")
+		createStatement += " WITH USER " + strings.Join(usernames, ", ")
 	}
+
+	log.Print("Create group statement: " + createStatement)
 
 	if _, err := client.Exec(createStatement); err != nil {
 		log.Fatal(err)
 		return err
 	}
 
-	var grosysid string
+	log.Print("Database created succesfully, reading grosyid from pg_group")
+
+	//The changes do not propagate instantly
+	time.Sleep(5 * time.Second)
+
+	var grosysid int
 	err := client.QueryRow("SELECT grosysid FROM pg_group WHERE groname = $1", d.Get("group_name").(string)).Scan(&grosysid)
 
 	if err != nil {
@@ -79,7 +86,9 @@ func resourceRedshiftGroupCreate(d *schema.ResourceData, meta interface{}) error
 		return err
 	}
 
-	d.SetId(grosysid)
+	log.Printf("grosysid is %s", strconv.Itoa(grosysid))
+
+	d.SetId(strconv.Itoa(grosysid))
 
 	return resourceRedshiftGroupRead(d, meta)
 }
@@ -93,7 +102,7 @@ func resourceRedshiftGroupRead(d *schema.ResourceData, meta interface{}) error {
 		users 		sql.NullString
 	)
 
-	err := client.QueryRow("select groname, grolist from pg_group grosysid = $1", d.Id()).Scan(&groupname, &users)
+	err := client.QueryRow("select groname, grolist from pg_group where grosysid = $1", d.Id()).Scan(&groupname, &users)
 
 	if err != nil {
 		log.Fatal(err)

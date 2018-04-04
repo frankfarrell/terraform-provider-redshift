@@ -19,11 +19,11 @@ resource "redshift_user" "testuser2"{
 }
 
 
-//resource "redshift_group" "testgroup" {
-//  "group_name" = "testgroup"
-//  "users" = [101]//"${redshift_user.testuser.usesysid}"]
-//}
-//
+resource "redshift_group" "testgroup" {
+  "group_name" = "testgroup"
+  "users" = ["${redshift_user.testuser.id}"]
+}
+
 resource "redshift_database" "testdb" {
   "database_name" = "testdb",
   "owner" ="${redshift_user.testuser2.id}",
