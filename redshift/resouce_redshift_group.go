@@ -7,7 +7,6 @@ import (
 	"strings"
 	"strconv"
 	"time"
-	"github.com/aws/aws-sdk-go/aws/client"
 )
 
 //name and list of users

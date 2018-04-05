@@ -9,7 +9,6 @@ import (
 	"github.com/hashicorp/terraform/helper/schema"
 	"log"
 	"time"
-	"github.com/aws/aws-sdk-go/aws/client"
 )
 
 func redshiftDatabase() *schema.Resource {

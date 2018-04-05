@@ -1,8 +1,16 @@
 # Terraform Redshift Provider
 
-Manage redshift users, groups, privileges, databases and schemas. 
+Manage Redshift users, groups, privileges, databases and schemas. It runs the SQL queries necessary to manage these (CREATE USER, DELETE DATABASE etc)
+in transactions, and also reads the state from the tables that store this state, eg pg_user_info, pg_group etc. The underlying tables are more or less equivalent to the postgres tables, 
+but some tables are not accessible in Redshift. 
 
-Currently only supports users, groups and databses. 
+Currently only supports users, groups and databases. Privileges and schemas coming soon! 
+
+## Limitations
+For authoritative limitations, please see the Redshift documentations. 
+1) You cannot delete the database you are currently connected to. 
+2) You cannot set table specific privileges since this provider is table agnostic (for now, if you think it would be feasible to manage tables let me know)
+3) On importing a user, it is impossible to read the password (or even the md hash of the password, since Redshift restricts access to pg_shadow)
 
 ## Example: 
 
@@ -50,7 +58,7 @@ resource "redshift_user" "testuser"{
 }
 ```
 
-## Prequisites
+## Prequisites to development
 1. Go installed
 2. Terraform installed locally
 
@@ -64,5 +72,4 @@ The easiest thing is probably to update your hosts file so that the url resolves
 ## TODO 
 1. All the other resources! 
 2. Port this to postgres
-3. Rollback on failure by calling Delete
-4. Handle cascading deletes properly
+3. Handle cascading deletes properly
