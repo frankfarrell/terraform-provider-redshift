@@ -7,6 +7,7 @@ import (
 	"strings"
 	"strconv"
 	"time"
+	"github.com/aws/aws-sdk-go/aws/client"
 )
 
 //name and list of users
@@ -55,20 +56,25 @@ func resourceRedshiftGroupExists(d *schema.ResourceData, meta interface{}) (b bo
 }
 
 func resourceRedshiftGroupCreate(d *schema.ResourceData, meta interface{}) error {
-	client := meta.(*sql.DB)
+	redshiftClient := meta.(*sql.DB)
 
+	tx, txErr := redshiftClient.Begin()
+
+	if txErr != nil {
+		panic(txErr)
+	}
 	var createStatement string = "create group " + d.Get("group_name").(string)
 
 	if v, ok := d.GetOk("users"); ok {
 
-		var usernames = GetUsersnamesForUsesysid(client, v.(*schema.Set).List())
+		var usernames = GetUsersnamesForUsesysid(tx, v.(*schema.Set).List())
 
 		createStatement += " WITH USER " + strings.Join(usernames, ", ")
 	}
 
 	log.Print("Create group statement: " + createStatement)
 
-	if _, err := client.Exec(createStatement); err != nil {
+	if _, err := tx.Exec(createStatement); err != nil {
 		log.Fatal(err)
 		return err
 	}
@@ -79,7 +85,7 @@ func resourceRedshiftGroupCreate(d *schema.ResourceData, meta interface{}) error
 	time.Sleep(5 * time.Second)
 
 	var grosysid int
-	err := client.QueryRow("SELECT grosysid FROM pg_group WHERE groname = $1", d.Get("group_name").(string)).Scan(&grosysid)
+	err := tx.QueryRow("SELECT grosysid FROM pg_group WHERE groname = $1", d.Get("group_name").(string)).Scan(&grosysid)
 
 	if err != nil {
 		log.Fatal(err)
@@ -91,18 +97,46 @@ func resourceRedshiftGroupCreate(d *schema.ResourceData, meta interface{}) error
 	d.SetId(strconv.Itoa(grosysid))
 
 	return resourceRedshiftGroupRead(d, meta)
+
+	readErr := readRedshiftGroup(d, tx)
+
+	if readErr == nil {
+		tx.Commit()
+		return nil
+	} else {
+		tx.Rollback()
+		return readErr
+	}
 }
 
 func resourceRedshiftGroupRead(d *schema.ResourceData, meta interface{}) error {
 
-	client := meta.(*sql.DB)
+	redshiftClient := meta.(*sql.DB)
 
+	tx, txErr := redshiftClient.Begin()
+
+	if txErr != nil {
+		panic(txErr)
+	}
+
+	err := readRedshiftGroup(d, tx)
+
+	if err == nil {
+		tx.Commit()
+		return nil
+	} else {
+		tx.Rollback()
+		return err
+	}
+}
+
+func readRedshiftGroup(d *schema.ResourceData, tx *sql.Tx) error {
 	var (
 		groupname 	string
 		users 		sql.NullString
 	)
 
-	err := client.QueryRow("select groname, grolist from pg_group where grosysid = $1", d.Id()).Scan(&groupname, &users)
+	err := tx.QueryRow("select groname, grolist from pg_group where grosysid = $1", d.Id()).Scan(&groupname, &users)
 
 	if err != nil {
 		log.Fatal(err)
@@ -135,14 +169,18 @@ func resourceRedshiftGroupRead(d *schema.ResourceData, meta interface{}) error {
 
 func resourceRedshiftGroupUpdate(d *schema.ResourceData, meta interface{}) error {
 
-	client := meta.(*sql.DB)
+	redshiftClient := meta.(*sql.DB)
+	tx, txErr := redshiftClient.Begin()
+	if txErr != nil {
+		panic(txErr)
+	}
 
 	if d.HasChange("group_name") {
 
 		oldName, newName := d.GetChange("group_name")
 		alterDatabaseNameQuery := "ALTER GROUP " + oldName.(string) + " RENAME TO " + newName.(string)
 
-		if _, err := client.Exec(alterDatabaseNameQuery); err != nil {
+		if _, err := tx.Exec(alterDatabaseNameQuery); err != nil {
 			return err
 		}
 	}
@@ -156,23 +194,31 @@ func resourceRedshiftGroupUpdate(d *schema.ResourceData, meta interface{}) error
 
 		if len(usersRemoved) > 0 {
 
-			var usersRemovedAsString = GetUsersnamesForUsesysid(client, usersRemoved)
+			var usersRemovedAsString = GetUsersnamesForUsesysid(tx, usersRemoved)
 
-			if _, err := client.Exec("ALTER GROUP " + d.Get("group_name").(string) + " DROP USER " +  strings.Join(usersRemovedAsString, ", ")); err != nil {
+			if _, err := tx.Exec("ALTER GROUP " + d.Get("group_name").(string) + " DROP USER " +  strings.Join(usersRemovedAsString, ", ")); err != nil {
 				return err
 			}
 		}
 		if len(usersAdded) > 0 {
 
-			var usersAddedAsString = GetUsersnamesForUsesysid(client, usersAdded)
+			var usersAddedAsString = GetUsersnamesForUsesysid(tx, usersAdded)
 
-			if _, err := client.Exec("ALTER GROUP " + d.Get("group_name").(string) + " ADD USER " +  strings.Join(usersAddedAsString, ", ")); err != nil {
+			if _, err := tx.Exec("ALTER GROUP " + d.Get("group_name").(string) + " ADD USER " +  strings.Join(usersAddedAsString, ", ")); err != nil {
 				return err
 			}
 		}
 	}
 
-	return resourceRedshiftGroupRead(d, meta)
+	err := readRedshiftGroup(d, tx)
+
+	if err == nil {
+		tx.Commit()
+		return nil
+	} else {
+		tx.Rollback()
+		return err
+	}
 }
 
 func resourceRedshiftGroupDelete(d *schema.ResourceData, meta interface{}) error {

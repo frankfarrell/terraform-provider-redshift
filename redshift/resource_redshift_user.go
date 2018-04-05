@@ -81,7 +81,13 @@ func resourceRedshiftUserExists(d *schema.ResourceData, meta interface{}) (b boo
 }
 
 func resourceRedshiftUserCreate(d *schema.ResourceData, meta interface{}) error {
-	client := meta.(*sql.DB)
+	redshiftClient := meta.(*sql.DB)
+
+	tx, txErr := redshiftClient.Begin()
+
+	if txErr != nil {
+		panic(txErr)
+	}
 
 	var createStatement string = "create user " + d.Get("username").(string) + " with password '" + d.Get("password").(string)+ "' "
 
@@ -117,7 +123,7 @@ func resourceRedshiftUserCreate(d *schema.ResourceData, meta interface{}) error 
 	}
 
 
-	if _, err := client.Exec(createStatement); err != nil {
+	if _, err := tx.Exec(createStatement); err != nil {
 		log.Fatal(err)
 		return err
 	}
@@ -126,7 +132,7 @@ func resourceRedshiftUserCreate(d *schema.ResourceData, meta interface{}) error 
 	time.Sleep(5 * time.Second)
 
 	var usesysid string
-	err := client.QueryRow("SELECT usesysid FROM pg_user_info WHERE usename = $1", d.Get("username").(string)).Scan(&usesysid)
+	err := tx.QueryRow("SELECT usesysid FROM pg_user_info WHERE usename = $1", d.Get("username").(string)).Scan(&usesysid)
 
 	if err != nil {
 		log.Fatal(err)
@@ -135,12 +141,40 @@ func resourceRedshiftUserCreate(d *schema.ResourceData, meta interface{}) error 
 
 	d.SetId(usesysid)
 
-	return resourceRedshiftUserRead(d, meta)
+	readErr := readRedshiftUser(d, tx)
+
+	if readErr == nil {
+		tx.Commit()
+		return nil
+	} else {
+		tx.Rollback()
+		return readErr
+	}
+
 }
 
 func resourceRedshiftUserRead(d *schema.ResourceData, meta interface{}) error {
 
-	client := meta.(*sql.DB)
+	redshiftClient := meta.(*sql.DB)
+
+	tx, txErr := redshiftClient.Begin()
+
+	if txErr != nil {
+		panic(txErr)
+	}
+
+	err := readRedshiftUser(d, tx)
+
+	if err == nil {
+		tx.Commit()
+		return nil
+	} else {
+		tx.Rollback()
+		return err
+	}
+}
+
+func readRedshiftUser(d *schema.ResourceData, tx *sql.Tx) error {
 
 	var (
 		usename      string
@@ -150,7 +184,7 @@ func resourceRedshiftUserRead(d *schema.ResourceData, meta interface{}) error {
 		useconnlimit sql.NullString
 	)
 
-	err := client.QueryRow("select usename, usecreatedb, usesuper, valuntil, useconnlimit "+
+	err := tx.QueryRow("select usename, usecreatedb, usesuper, valuntil, useconnlimit "+
 		"from pg_user_info where usesysid = $1", d.Id()).Scan(&usename, &usecreatedb, &usesuper, &valuntil, &useconnlimit)
 
 	if err != nil {
@@ -177,25 +211,31 @@ func resourceRedshiftUserRead(d *schema.ResourceData, meta interface{}) error {
 	return nil
 }
 
+
 func resourceRedshiftUserUpdate(d *schema.ResourceData, meta interface{}) error {
 
-	client := meta.(*sql.DB)
+	redshiftClient := meta.(*sql.DB)
+	tx, txErr := redshiftClient.Begin()
+
+	if txErr != nil {
+		panic(txErr)
+	}
 
 	if d.HasChange("username") {
 
 		oldUsername, newUsername := d.GetChange("username")
 		alterUserQuery := "alter user " + oldUsername.(string) + " rename to " + newUsername.(string)
 
-		if _, err := client.Exec(alterUserQuery); err != nil {
+		if _, err := tx.Exec(alterUserQuery); err != nil {
 			return err
 		}
 
 		//If name changes we also need to reset the password
-		if err := resetPassword(client, d, newUsername.(string)); err != nil {
+		if err := resetPassword(tx, d, newUsername.(string)); err != nil {
 			return err
 		}
 	} else if d.HasChange("password") || d.HasChange("password_disabled") || d.HasChange("valid_until") {
-		if err := resetPassword(client, d, d.Get("username").(string)); err != nil {
+		if err := resetPassword(tx, d, d.Get("username").(string)); err != nil {
 			return err
 		}
 	}
@@ -203,48 +243,56 @@ func resourceRedshiftUserUpdate(d *schema.ResourceData, meta interface{}) error 
 	if d.HasChange("createdb") {
 
 		if v, ok := d.GetOk("createdb"); ok && v.(bool) {
-			if _, err := client.Exec("alter user " + d.Get("username").(string) + " createdb"); err != nil {
+			if _, err := tx.Exec("alter user " + d.Get("username").(string) + " createdb"); err != nil {
 				return err
 			}
 		} else {
-			if _, err := client.Exec("alter user " + d.Get("username").(string) + " nocreatedb"); err != nil {
+			if _, err := tx.Exec("alter user " + d.Get("username").(string) + " nocreatedb"); err != nil {
 				return err
 			}
 		}
 	}
 	//TODO What if value is removed?
 	if d.HasChange("connection_limit") {
-		if _, err := client.Exec("alter user " + d.Get("username").(string) + " CONNECTION LIMIT " + d.Get("connection_limit").(string)); err != nil {
+		if _, err := tx.Exec("alter user " + d.Get("username").(string) + " CONNECTION LIMIT " + d.Get("connection_limit").(string)); err != nil {
 			return err
 		}
 	}
 	if d.HasChange("syslog_access") {
-		if _, err := client.Exec("alter user " + d.Get("username").(string) + " SYSLOG ACCESS " + d.Get("syslog_access").(string)); err != nil {
+		if _, err := tx.Exec("alter user " + d.Get("username").(string) + " SYSLOG ACCESS " + d.Get("syslog_access").(string)); err != nil {
 			return err
 		}
 	}
 	if d.HasChange("superuser") {
 		if v, ok := d.GetOk("superuser"); ok && v.(bool) {
-			if _, err := client.Exec("alter user " + d.Get("username").(string) + " CREATEUSER "); err != nil {
+			if _, err := tx.Exec("alter user " + d.Get("username").(string) + " CREATEUSER "); err != nil {
 				return err
 			}
 		} else {
-			if _, err := client.Exec("alter user " + d.Get("username").(string) + " NOCREATEUSER"); err != nil {
+			if _, err := tx.Exec("alter user " + d.Get("username").(string) + " NOCREATEUSER"); err != nil {
 				return err
 			}
 		}
 	}
 
-	return resourceRedshiftUserRead(d, meta)
+	err := readRedshiftUser(d, tx)
+
+	if err == nil {
+		tx.Commit()
+		return nil
+	} else {
+		tx.Rollback()
+		return err
+	}
 }
 
-func resetPassword(client *sql.DB, d *schema.ResourceData, username string) error {
+func resetPassword(tx *sql.Tx, d *schema.ResourceData, username string) error {
 
 	if v, ok := d.GetOk("password_disabled"); ok && v.(bool) {
 
 		var disablePasswordQuery = "alter user " + username + " password disable"
 
-		if _, err := client.Exec(disablePasswordQuery); err != nil {
+		if _, err := tx.Exec(disablePasswordQuery); err != nil {
 			return err
 		}
 		return nil
@@ -255,7 +303,7 @@ func resetPassword(client *sql.DB, d *schema.ResourceData, username string) erro
 			resetPasswordQuery += " VALID UNTIL '" + v.(string) + "'"
 
 		}
-		if _, err := client.Exec(resetPasswordQuery); err != nil {
+		if _, err := tx.Exec(resetPasswordQuery); err != nil {
 			return err
 		}
 		return nil
@@ -301,7 +349,7 @@ func resourceRedshiftUserImport(d *schema.ResourceData, meta interface{}) ([]*sc
 	return []*schema.ResourceData{d}, nil
 }
 
-func GetUsersnamesForUsesysid(client *sql.DB, usersIdsInterface []interface{}) []string {
+func GetUsersnamesForUsesysid(tx *sql.Tx, usersIdsInterface []interface{}) []string {
 
 	var usersIds = make([]int, 0)
 
@@ -316,7 +364,7 @@ func GetUsersnamesForUsesysid(client *sql.DB, usersIdsInterface []interface{}) [
 
 	log.Print("Select user query: " + selectUserQuery)
 
-	rows, err := client.Query(selectUserQuery)
+	rows, err := tx.Query(selectUserQuery)
 	if err != nil {
 		// handle this error better than this
 		panic(err)

@@ -9,6 +9,7 @@ import (
 	"github.com/hashicorp/terraform/helper/schema"
 	"log"
 	"time"
+	"github.com/aws/aws-sdk-go/aws/client"
 )
 
 func redshiftDatabase() *schema.Resource {
@@ -55,13 +56,18 @@ func resourceRedshiftDatabaseExists(d *schema.ResourceData, meta interface{}) (b
 }
 
 func resourceRedshiftDatabaseCreate(d *schema.ResourceData, meta interface{}) error {
-	client := meta.(*sql.DB)
+
+	redshiftClient := meta.(*sql.DB)
+	tx, txErr := redshiftClient.Begin()
+	if txErr != nil {
+		panic(txErr)
+	}
 
 	var createStatement string = "create database " + d.Get("database_name").(string)
 
 	if v, ok := d.GetOk("owner"); ok {
 
-		var usernames = GetUsersnamesForUsesysid(client, []interface{}{v.(int)})
+		var usernames = GetUsersnamesForUsesysid(tx, []interface{}{v.(int)})
 		createStatement += " OWNER " + usernames[0]
 	}
 	if v, ok := d.GetOk("connection_limit"); ok {
@@ -70,7 +76,7 @@ func resourceRedshiftDatabaseCreate(d *schema.ResourceData, meta interface{}) er
 
 	log.Print("Create database statement: " + createStatement)
 
-	if _, err := client.Exec(createStatement); err != nil {
+	if _, err := tx.Exec(createStatement); err != nil {
 		log.Fatal(err)
 		return err
 	}
@@ -79,7 +85,7 @@ func resourceRedshiftDatabaseCreate(d *schema.ResourceData, meta interface{}) er
 	time.Sleep(5 * time.Second)
 
 	var datid string
-	err := client.QueryRow("SELECT datid FROM pg_database_info WHERE datname = $1", d.Get("database_name").(string)).Scan(&datid)
+	err := tx.QueryRow("SELECT datid FROM pg_database_info WHERE datname = $1", d.Get("database_name").(string)).Scan(&datid)
 
 	if err != nil {
 		log.Fatal(err)
@@ -88,20 +94,44 @@ func resourceRedshiftDatabaseCreate(d *schema.ResourceData, meta interface{}) er
 
 	d.SetId(datid)
 
-	return resourceRedshiftDatabaseRead(d, meta)
+	readErr := readRedshiftDatabase(d, tx)
+
+	if readErr == nil {
+		tx.Commit()
+		return nil
+	} else {
+		tx.Rollback()
+		return readErr
+	}
 }
 
 func resourceRedshiftDatabaseRead(d *schema.ResourceData, meta interface{}) error {
 
-	client := meta.(*sql.DB)
+	redshiftClient := meta.(*sql.DB)
+	tx, txErr := redshiftClient.Begin()
+	if txErr != nil {
+		panic(txErr)
+	}
 
+	err := readRedshiftDatabase(d, tx)
+
+	if err == nil {
+		tx.Commit()
+		return nil
+	} else {
+		tx.Rollback()
+		return err
+	}
+}
+
+func readRedshiftDatabase(d *schema.ResourceData, tx *sql.Tx) error {
 	var (
 		databasename 	string
 		owner		int
 		connlimit 	sql.NullString
 	)
 
-	err := client.QueryRow("select datname, datdba, datconnlimit from pg_database_info where datid = $1", d.Id()).Scan(&databasename, &owner, &connlimit)
+	err := tx.QueryRow("select datname, datdba, datconnlimit from pg_database_info where datid = $1", d.Id()).Scan(&databasename, &owner, &connlimit)
 
 	if err != nil {
 		log.Fatal(err)
@@ -122,35 +152,48 @@ func resourceRedshiftDatabaseRead(d *schema.ResourceData, meta interface{}) erro
 
 func resourceRedshiftDatabaseUpdate(d *schema.ResourceData, meta interface{}) error {
 
-	client := meta.(*sql.DB)
+	redshiftClient := meta.(*sql.DB)
+	tx, txErr := redshiftClient.Begin()
+	if txErr != nil {
+		panic(txErr)
+	}
+
 
 	if d.HasChange("database_name") {
 
 		oldName, newName := d.GetChange("database_name")
 		alterDatabaseNameQuery := "ALTER DATABASE " + oldName.(string) + " rename to " + newName.(string)
 
-		if _, err := client.Exec(alterDatabaseNameQuery); err != nil {
+		if _, err := tx.Exec(alterDatabaseNameQuery); err != nil {
 			return err
 		}
 	}
 
 	if d.HasChange("owner") {
 
-		var username = GetUsersnamesForUsesysid(client, []interface{}{d.Get("owner").(int)})
+		var username = GetUsersnamesForUsesysid(tx, []interface{}{d.Get("owner").(int)})
 
-		if _, err := client.Exec("ALTER DATABASE " + d.Get("database_name").(string) + " OWNER TO " + username[0]); err != nil {
+		if _, err := tx.Exec("ALTER DATABASE " + d.Get("database_name").(string) + " OWNER TO " + username[0]); err != nil {
 			return err
 		}
 	}
 
 	//TODO What if value is removed?
 	if d.HasChange("connection_limit") {
-		if _, err := client.Exec("ALTER DATABASE " + d.Get("database_name").(string) + " CONNECTION LIMIT " + d.Get("connection_limit").(string)); err != nil {
+		if _, err := tx.Exec("ALTER DATABASE " + d.Get("database_name").(string) + " CONNECTION LIMIT " + d.Get("connection_limit").(string)); err != nil {
 			return err
 		}
 	}
 
-	return resourceRedshiftDatabaseRead(d, meta)
+	err := readRedshiftDatabase(d, tx)
+
+	if err == nil {
+		tx.Commit()
+		return nil
+	} else {
+		tx.Rollback()
+		return err
+	}
 }
 
 func resourceRedshiftDatabaseDelete(d *schema.ResourceData, meta interface{}) error {
