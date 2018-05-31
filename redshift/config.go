@@ -14,12 +14,14 @@ type Config struct {
 	password string
 	port     string
 	database string
+	sslmode  string
 }
 
 // New redshift client
 func (c *Config) Client() *sql.DB {
 
-	conninfo := fmt.Sprintf("sslmode=disable user=%v password=%v host=%v port=%v dbname=%v",
+	conninfo := fmt.Sprintf("sslmode=%v user=%v password=%v host=%v port=%v dbname=%v",
+		c.sslmode,
 		c.user,
 		c.password,
 		c.url,

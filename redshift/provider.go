@@ -30,6 +30,12 @@ func Provider() terraform.ResourceProvider {
 				Optional:    true,
 				Default:     "5439",
 			},
+			"sslmode": {
+				Type:        schema.TypeString,
+				Description: "SSL mode (require, disable, verify-ca, verify-full)",
+				Optional:    true,
+				Default:     "require",
+			},
 			"database": {
 				Type:        schema.TypeString,
 				Description: "default database",
@@ -38,9 +44,9 @@ func Provider() terraform.ResourceProvider {
 			},
 		},
 		ResourcesMap: map[string]*schema.Resource{
-			"redshift_user": redshiftUser(),
-			"redshift_group": redshiftGroup(),
-			"redshift_database" : redshiftDatabase(),
+			"redshift_user":     redshiftUser(),
+			"redshift_group":    redshiftGroup(),
+			"redshift_database": redshiftDatabase(),
 		},
 		ConfigureFunc: providerConfigure,
 	}
@@ -53,6 +59,7 @@ func providerConfigure(d *schema.ResourceData) (interface{}, error) {
 		user:     d.Get("user").(string),
 		password: d.Get("password").(string),
 		port:     d.Get("port").(string),
+		sslmode:  d.Get("sslmode").(string),
 		database: d.Get("database").(string),
 	}
 
@@ -63,7 +70,7 @@ func providerConfigure(d *schema.ResourceData) (interface{}, error) {
 	err := client.Ping()
 
 	if err != nil {
-		log.Println("[ERROR] Could not establist Redshift connection with credentials")
+		log.Println("[ERROR] Could not establish Redshift connection with credentials")
 		panic(err.Error()) // proper error handling instead of panic
 	}
 
