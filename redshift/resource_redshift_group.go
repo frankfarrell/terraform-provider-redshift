@@ -90,8 +90,6 @@ func resourceRedshiftGroupCreate(d *schema.ResourceData, meta interface{}) error
 
 	d.SetId(strconv.Itoa(grosysid))
 
-	return resourceRedshiftGroupRead(d, meta)
-
 	readErr := readRedshiftGroup(d, tx)
 
 	if readErr == nil {
