@@ -72,8 +72,7 @@ func resourceRedshiftGroupCreate(d *schema.ResourceData, meta interface{}) error
 	log.Print("Create group statement: " + createStatement)
 
 	if _, err := tx.Exec(createStatement); err != nil {
-		log.Fatal(err)
-		return err
+		return fmt.Errorf("Could not create redshift group: %s", err)
 	}
 
 	log.Print("Group created succesfully, reading grosyid from pg_group")
@@ -84,8 +83,7 @@ func resourceRedshiftGroupCreate(d *schema.ResourceData, meta interface{}) error
 	var grosysid int
 	err := tx.QueryRow("SELECT grosysid FROM pg_group WHERE groname = $1", d.Get("group_name").(string)).Scan(&grosysid)
 	if err != nil {
-		log.Fatal(err)
-		return err
+		return fmt.Errorf("Could not get redshift group id: %s", err)
 	}
 
 	log.Printf("grosysid is %s", strconv.Itoa(grosysid))
