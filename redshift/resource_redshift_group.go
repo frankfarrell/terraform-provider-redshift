@@ -76,7 +76,7 @@ func resourceRedshiftGroupCreate(d *schema.ResourceData, meta interface{}) error
 		return err
 	}
 
-	log.Print("Database created succesfully, reading grosyid from pg_group")
+	log.Print("Group created succesfully, reading grosyid from pg_group")
 
 	//The changes do not propagate instantly
 	time.Sleep(5 * time.Second)
@@ -221,7 +221,7 @@ func resourceRedshiftGroupDelete(d *schema.ResourceData, meta interface{}) error
 
 	client := meta.(*sql.DB)
 
-	_, err := client.Exec("GROP GROUP " + d.Get("group_name").(string))
+	_, err := client.Exec("DROP GROUP " + d.Get("group_name").(string))
 
 	if err != nil {
 		log.Fatal(err)
