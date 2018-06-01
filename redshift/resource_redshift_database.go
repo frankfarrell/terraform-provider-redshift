@@ -125,9 +125,9 @@ func resourceRedshiftDatabaseRead(d *schema.ResourceData, meta interface{}) erro
 
 func readRedshiftDatabase(d *schema.ResourceData, tx *sql.Tx) error {
 	var (
-		databasename 	string
-		owner		int
-		connlimit 	sql.NullString
+		databasename string
+		owner        int
+		connlimit    sql.NullString
 	)
 
 	err := tx.QueryRow("select datname, datdba, datconnlimit from pg_database_info where datid = $1", d.Id()).Scan(&databasename, &owner, &connlimit)
@@ -156,7 +156,6 @@ func resourceRedshiftDatabaseUpdate(d *schema.ResourceData, meta interface{}) er
 	if txErr != nil {
 		panic(txErr)
 	}
-
 
 	if d.HasChange("database_name") {
 

@@ -1,11 +1,12 @@
 package redshift
 
 import (
-	"github.com/hashicorp/terraform/helper/schema"
 	"database/sql"
+	"fmt"
+	"github.com/hashicorp/terraform/helper/schema"
 	"log"
-	"strings"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -58,16 +59,13 @@ func resourceRedshiftGroupCreate(d *schema.ResourceData, meta interface{}) error
 	redshiftClient := meta.(*sql.DB)
 
 	tx, txErr := redshiftClient.Begin()
-
 	if txErr != nil {
 		panic(txErr)
 	}
+
 	var createStatement string = "create group " + d.Get("group_name").(string)
-
 	if v, ok := d.GetOk("users"); ok {
-
 		var usernames = GetUsersnamesForUsesysid(tx, v.(*schema.Set).List())
-
 		createStatement += " WITH USER " + strings.Join(usernames, ", ")
 	}
 
@@ -85,7 +83,6 @@ func resourceRedshiftGroupCreate(d *schema.ResourceData, meta interface{}) error
 
 	var grosysid int
 	err := tx.QueryRow("SELECT grosysid FROM pg_group WHERE groname = $1", d.Get("group_name").(string)).Scan(&grosysid)
-
 	if err != nil {
 		log.Fatal(err)
 		return err
@@ -240,7 +237,6 @@ func resourceRedshiftGroupImport(d *schema.ResourceData, meta interface{}) ([]*s
 	}
 	return []*schema.ResourceData{d}, nil
 }
-
 
 // Complexity: O(n^2)
 // Returns a minus b
