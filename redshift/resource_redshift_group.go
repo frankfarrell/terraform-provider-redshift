@@ -126,11 +126,11 @@ func resourceRedshiftGroupRead(d *schema.ResourceData, meta interface{}) error {
 
 func readRedshiftGroup(d *schema.ResourceData, tx *sql.Tx) error {
 	var (
-		groupname 	string
-		users 		sql.NullString
+		groupname string
+		users     sql.NullString
 	)
 
-	err := tx.QueryRow("select groname, grolist from pg_group where grosysid = $1", d.Id()).Scan(&groupname, &users)
+	err := tx.QueryRow("SELECT groname, grolist FROM pg_group WHERE grosysid = $1", d.Id()).Scan(&groupname, &users)
 
 	if err != nil {
 		log.Fatal(err)
@@ -190,7 +190,7 @@ func resourceRedshiftGroupUpdate(d *schema.ResourceData, meta interface{}) error
 
 			var usersRemovedAsString = GetUsersnamesForUsesysid(tx, usersRemoved)
 
-			if _, err := tx.Exec("ALTER GROUP " + d.Get("group_name").(string) + " DROP USER " +  strings.Join(usersRemovedAsString, ", ")); err != nil {
+			if _, err := tx.Exec("ALTER GROUP " + d.Get("group_name").(string) + " DROP USER " + strings.Join(usersRemovedAsString, ", ")); err != nil {
 				return err
 			}
 		}
@@ -198,7 +198,7 @@ func resourceRedshiftGroupUpdate(d *schema.ResourceData, meta interface{}) error
 
 			var usersAddedAsString = GetUsersnamesForUsesysid(tx, usersAdded)
 
-			if _, err := tx.Exec("ALTER GROUP " + d.Get("group_name").(string) + " ADD USER " +  strings.Join(usersAddedAsString, ", ")); err != nil {
+			if _, err := tx.Exec("ALTER GROUP " + d.Get("group_name").(string) + " ADD USER " + strings.Join(usersAddedAsString, ", ")); err != nil {
 				return err
 			}
 		}
