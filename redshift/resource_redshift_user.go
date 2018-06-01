@@ -2,9 +2,9 @@ package redshift
 
 import (
 	"database/sql"
+	"fmt"
 	"github.com/hashicorp/terraform/helper/schema"
 	"log"
-	"fmt"
 	"strings"
 	"time"
 )
@@ -89,14 +89,14 @@ func resourceRedshiftUserCreate(d *schema.ResourceData, meta interface{}) error 
 		panic(txErr)
 	}
 
-	var createStatement string = "create user " + d.Get("username").(string) + " with password '" + d.Get("password").(string)+ "' "
+	var createStatement string = "create user " + d.Get("username").(string) + " with password '" + d.Get("password").(string) + "' "
 
 	if v, ok := d.GetOk("password_disabled"); ok && v.(bool) {
 		createStatement += " DISABLED "
 	}
 	if v, ok := d.GetOk("valid_until"); ok {
 		//TODO Validate v is in format YYYY-mm-dd
-		createStatement += "VALID UNTIL '" + v.(string) +"'"
+		createStatement += "VALID UNTIL '" + v.(string) + "'"
 	}
 	if v, ok := d.GetOk("createdb"); ok {
 		if v.(bool) {
@@ -121,7 +121,6 @@ func resourceRedshiftUserCreate(d *schema.ResourceData, meta interface{}) error 
 	if v, ok := d.GetOk("superuser"); ok && v.(bool) {
 		createStatement += " CREATEUSER "
 	}
-
 
 	if _, err := tx.Exec(createStatement); err != nil {
 		log.Fatal(err)
@@ -210,7 +209,6 @@ func readRedshiftUser(d *schema.ResourceData, tx *sql.Tx) error {
 
 	return nil
 }
-
 
 func resourceRedshiftUserUpdate(d *schema.ResourceData, meta interface{}) error {
 

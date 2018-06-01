@@ -1,9 +1,9 @@
 package main
 
 import (
+	"github.com/frankfarrell/terraform-provider-redshift/redshift"
 	"github.com/hashicorp/terraform/plugin"
 	"github.com/hashicorp/terraform/terraform"
-	"github.com/frankfarrell/terraform-provider-redshift/redshift"
 )
 
 func main() {
