@@ -10,10 +10,10 @@ import (
 	"time"
 )
 
-//name and list of users
-//https://docs.aws.amazon.com/redshift/latest/dg/r_CREATE_DATABASE.html
-//https://docs.aws.amazon.com/redshift/latest/dg/r_DROP_DATABASE.html
-//https://docs.aws.amazon.com/redshift/latest/dg/r_ALTER_DATABASE.html
+// name and list of users
+// https://docs.aws.amazon.com/redshift/latest/dg/r_CREATE_GROUP.html
+// https://docs.aws.amazon.com/redshift/latest/dg/r_DROP_GROUP.html
+// https://docs.aws.amazon.com/redshift/latest/dg/r_ALTER_GROUP.html
 
 func redshiftGroup() *schema.Resource {
 	return &schema.Resource{
