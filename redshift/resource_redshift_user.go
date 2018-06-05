@@ -373,7 +373,7 @@ func resourceRedshiftUserDelete(d *schema.ResourceData, meta interface{}) error 
 
 	defer rows.Close()
 
-	if reassignOwnerStatementErr {
+	if reassignOwnerStatementErr != nil{
 		tx.Rollback()
 		return reassignOwnerStatementErr
 	}
@@ -390,7 +390,7 @@ func resourceRedshiftUserDelete(d *schema.ResourceData, meta interface{}) error 
 			tx.Rollback()
 			return err
 		}
-		append(reassignStatements, reassignStatement)
+		reassignStatements = append(reassignStatements, reassignStatement)
 	}
 
 	for _, statement := range reassignStatements {
@@ -403,7 +403,7 @@ func resourceRedshiftUserDelete(d *schema.ResourceData, meta interface{}) error 
 		}
 	}
 
-	_, dropUserErr := tx.Exec("DROP USER" + d.Get("username").(string))
+	_, dropUserErr := tx.Exec("DROP USER " + d.Get("username").(string))
 
 	if dropUserErr == nil {
 		tx.Commit()
@@ -421,7 +421,7 @@ func resourceRedshiftUserImport(d *schema.ResourceData, meta interface{}) ([]*sc
 	return []*schema.ResourceData{d}, nil
 }
 
-func GetUsersnamesForUsesysid(tx *sql.Tx, usersIdsInterface []interface{}) []string {
+func GetUsersnamesForUsesysid(tx *sql.Tx, db *sql.DB, usersIdsInterface []interface{}) []string {
 
 	var usersIds = make([]int, 0)
 
@@ -436,7 +436,20 @@ func GetUsersnamesForUsesysid(tx *sql.Tx, usersIdsInterface []interface{}) []str
 
 	log.Print("Select user query: " + selectUserQuery)
 
-	rows, err := tx.Query(selectUserQuery)
+	var rows *sql.Rows
+	var err  error
+
+	//Crazy constructs, but I cant figure out a better way :)
+	if tx != nil {
+		txrows, txerr := tx.Query(selectUserQuery)
+		rows = txrows
+		err = txerr
+	} else {
+		dbrows, dberr := db.Query(selectUserQuery)
+		rows = dbrows
+		err = dberr
+	}
+
 	if err != nil {
 		// handle this error better than this
 		panic(err)

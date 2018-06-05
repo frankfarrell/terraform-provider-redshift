@@ -57,16 +57,12 @@ func resourceRedshiftDatabaseExists(d *schema.ResourceData, meta interface{}) (b
 func resourceRedshiftDatabaseCreate(d *schema.ResourceData, meta interface{}) error {
 
 	redshiftClient := meta.(*Client).db
-	tx, txErr := redshiftClient.Begin()
-	if txErr != nil {
-		panic(txErr)
-	}
 
 	var createStatement string = "create database " + d.Get("database_name").(string)
 
 	//If no owner is specified it defaults to client user
 	if v, ok := d.GetOk("owner"); ok {
-		var usernames = GetUsersnamesForUsesysid(tx, []interface{}{v.(int)})
+		var usernames = GetUsersnamesForUsesysid(nil, redshiftClient, []interface{}{v.(int)})
 		createStatement += " OWNER " + usernames[0]
 	}
 
@@ -76,7 +72,7 @@ func resourceRedshiftDatabaseCreate(d *schema.ResourceData, meta interface{}) er
 
 	log.Print("Create database statement: " + createStatement)
 
-	if _, err := tx.Exec(createStatement); err != nil {
+	if _, err := redshiftClient.Exec(createStatement); err != nil {
 		log.Fatal(err)
 		return err
 	}
@@ -85,7 +81,7 @@ func resourceRedshiftDatabaseCreate(d *schema.ResourceData, meta interface{}) er
 	time.Sleep(5 * time.Second)
 
 	var datid string
-	err := tx.QueryRow("SELECT datid FROM pg_database_info WHERE datname = $1", d.Get("database_name").(string)).Scan(&datid)
+	err := redshiftClient.QueryRow("SELECT datid FROM pg_database_info WHERE datname = $1", d.Get("database_name").(string)).Scan(&datid)
 
 	if err != nil {
 		log.Fatal(err)
@@ -94,44 +90,28 @@ func resourceRedshiftDatabaseCreate(d *schema.ResourceData, meta interface{}) er
 
 	d.SetId(datid)
 
-	readErr := readRedshiftDatabase(d, tx)
+	readErr := readRedshiftDatabase(d, redshiftClient)
 
-	if readErr == nil {
-		tx.Commit()
-		return nil
-	} else {
-		tx.Rollback()
-		return readErr
-	}
+	return readErr
 }
 
 func resourceRedshiftDatabaseRead(d *schema.ResourceData, meta interface{}) error {
 
 	redshiftClient := meta.(*Client).db
-	tx, txErr := redshiftClient.Begin()
-	if txErr != nil {
-		panic(txErr)
-	}
 
-	err := readRedshiftDatabase(d, tx)
+	err := readRedshiftDatabase(d, redshiftClient)
 
-	if err == nil {
-		tx.Commit()
-		return nil
-	} else {
-		tx.Rollback()
-		return err
-	}
+	return err
 }
 
-func readRedshiftDatabase(d *schema.ResourceData, tx *sql.Tx) error {
+func readRedshiftDatabase(d *schema.ResourceData, db *sql.DB) error {
 	var (
 		databasename string
 		owner        int
 		connlimit    sql.NullString
 	)
 
-	err := tx.QueryRow("select datname, datdba, datconnlimit from pg_database_info where datid = $1", d.Id()).Scan(&databasename, &owner, &connlimit)
+	err := db.QueryRow("select datname, datdba, datconnlimit from pg_database_info where datid = $1", d.Id()).Scan(&databasename, &owner, &connlimit)
 
 	if err != nil {
 		log.Fatal(err)
@@ -170,7 +150,7 @@ func resourceRedshiftDatabaseUpdate(d *schema.ResourceData, meta interface{}) er
 
 	if d.HasChange("owner") {
 
-		var username = GetUsersnamesForUsesysid(tx, []interface{}{d.Get("owner").(int)})
+		var username = GetUsersnamesForUsesysid(nil, redshiftClient, []interface{}{d.Get("owner").(int)})
 
 		if _, err := tx.Exec("ALTER DATABASE " + d.Get("database_name").(string) + " OWNER TO " + username[0]); err != nil {
 			return err
@@ -184,7 +164,7 @@ func resourceRedshiftDatabaseUpdate(d *schema.ResourceData, meta interface{}) er
 		}
 	}
 
-	err := readRedshiftDatabase(d, tx)
+	err := readRedshiftDatabase(d, redshiftClient)
 
 	if err == nil {
 		tx.Commit()

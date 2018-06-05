@@ -40,7 +40,7 @@ func (c *Config) Client() *Client {
 		panic(err)
 	}
 
-	return Client{
+	return &Client{
 		config: *c,
 		db:     db,
 	}
