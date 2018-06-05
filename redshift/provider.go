@@ -64,7 +64,7 @@ func providerConfigure(d *schema.ResourceData) (interface{}, error) {
 	}
 
 	log.Println("[INFO] Initializing Redshift client")
-	client := config.Client()
+	client := config.Client().db
 
 	//Test the connection
 	err := client.Ping()
