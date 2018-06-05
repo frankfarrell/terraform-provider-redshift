@@ -64,10 +64,11 @@ func providerConfigure(d *schema.ResourceData) (interface{}, error) {
 	}
 
 	log.Println("[INFO] Initializing Redshift client")
-	client := config.Client().db
+	client := config.Client()
+	db := client.db
 
 	//Test the connection
-	err := client.Ping()
+	err := db.Ping()
 
 	if err != nil {
 		log.Println("[ERROR] Could not establish Redshift connection with credentials")
