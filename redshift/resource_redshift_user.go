@@ -69,7 +69,7 @@ func redshiftUser() *schema.Resource {
 func resourceRedshiftUserExists(d *schema.ResourceData, meta interface{}) (b bool, e error) {
 	// Exists - This is called to verify a resource still exists. It is called prior to Read,
 	// and lowers the burden of Read to be able to assume the resource exists.
-	client := meta.(*sql.DB)
+	client := meta.(*Client).db
 
 	var name string
 
@@ -81,7 +81,7 @@ func resourceRedshiftUserExists(d *schema.ResourceData, meta interface{}) (b boo
 }
 
 func resourceRedshiftUserCreate(d *schema.ResourceData, meta interface{}) error {
-	redshiftClient := meta.(*sql.DB)
+	redshiftClient := meta.(*Client).db
 
 	tx, txErr := redshiftClient.Begin()
 
@@ -154,7 +154,7 @@ func resourceRedshiftUserCreate(d *schema.ResourceData, meta interface{}) error 
 
 func resourceRedshiftUserRead(d *schema.ResourceData, meta interface{}) error {
 
-	redshiftClient := meta.(*sql.DB)
+	redshiftClient := meta.(*Client).db
 
 	tx, txErr := redshiftClient.Begin()
 
@@ -212,7 +212,7 @@ func readRedshiftUser(d *schema.ResourceData, tx *sql.Tx) error {
 
 func resourceRedshiftUserUpdate(d *schema.ResourceData, meta interface{}) error {
 
-	redshiftClient := meta.(*sql.DB)
+	redshiftClient := meta.(*Client).db
 	tx, txErr := redshiftClient.Begin()
 
 	if txErr != nil {
@@ -310,34 +310,108 @@ func resetPassword(tx *sql.Tx, d *schema.ResourceData, username string) error {
 
 func resourceRedshiftUserDelete(d *schema.ResourceData, meta interface{}) error {
 
-	/*
-		NB BIG TODO!!!
+	redshiftClient := meta.(*Client).db
+	redshiftClientConfig := meta.(*Client).config
 
-		https://docs.aws.amazon.com/redshift/latest/dg/r_DROP_USER.html
-		If a user owns an object, first drop the object or change its ownership to another user before dropping
-		the original user. If the user has privileges for an object, first revoke the privileges before dropping
-		the user. The following example shows dropping an object, changing ownership, and revoking privileges
-		before dropping the user
+	tx, txErr := redshiftClient.Begin()
 
-		Ideally, these dependencies would be managed by TF. So a schema has an owner (which can be changed without force destroy)
-		But you can't have a schema without an owner for instance
-
-		So suppose you delete bob who owns schema X.
-		First change owner of schema X to mary.
-		Then delete Bob
-		Permissions will be modelled as TF resources too.
-	*/
-
-	client := meta.(*sql.DB)
-
-	_, err := client.Exec("drop user " + d.Get("username").(string))
-
-	if err != nil {
-		log.Fatal(err)
-		return err
+	if txErr != nil {
+		return fmt.Errorf("Could not begin redshift transaction: %s", txErr)
 	}
 
-	return nil
+	// https://docs.aws.amazon.com/redshift/latest/dg/r_DROP_USER.html
+	// If a user owns an object, first drop the object or change its ownership to another user before dropping
+	// the original user. If the user has privileges for an object, first revoke the privileges before dropping
+	// the user. The following example shows dropping an object, changing ownership, and revoking privileges
+	// before dropping the user
+	//
+	// There is no equivalent of Postgres REASSIGN USER unfortunately
+	//
+	// It is necessary to query and reassign to current user.
+	// See some discussion her: https://dba.stackexchange.com/questions/143938/drop-user-in-redshift-which-has-privilege-on-some-object
+	//
+	// Derived from https://github.com/awslabs/amazon-redshift-utils/blob/master/src/AdminViews/v_find_dropuser_objs.sql
+	var reassignOwnerGenerator string =
+		`SELECT owner.ddl
+		FROM (
+				-- Functions owned by the user
+				SELECT pgu.usesysid,
+				'alter function ' || QUOTE_IDENT(nc.nspname) || '.' ||textin (regprocedureout (pproc.oid::regprocedure)) || ' owner to '
+				FROM pg_proc pproc,pg_user pgu,pg_namespace nc
+				WHERE pproc.pronamespace = nc.oid
+				AND   pproc.proowner = pgu.usesysid
+			UNION ALL
+				-- Databases owned by the user
+				SELECT pgu.usesysid,
+				'alter database ' || QUOTE_IDENT(pgd.datname) || ' owner to '
+				FROM pg_database pgd,
+				     pg_user pgu
+				WHERE pgd.datdba = pgu.usesysid
+			UNION ALL
+				-- Schemas owned by the user
+				SELECT pgu.usesysid,
+				'alter schema '|| QUOTE_IDENT(pgn.nspname) ||' owner to '
+				FROM pg_namespace pgn,
+				     pg_user pgu
+				WHERE pgn.nspowner = pgu.usesysid
+			UNION ALL
+				-- Tables or Views owned by the user
+				SELECT pgu.usesysid,
+				'alter table ' || QUOTE_IDENT(nc.nspname) || '.' || QUOTE_IDENT(pgc.relname) || ' owner to '
+				FROM pg_class pgc,
+				     pg_user pgu,
+				     pg_namespace nc
+				WHERE pgc.relnamespace = nc.oid
+				AND   pgc.relkind IN ('r','v')
+				AND   pgu.usesysid = pgc.relowner
+				AND   nc.nspname NOT ILIKE 'pg\_temp\_%'
+		)
+		OWNER("userid", "ddl")
+		WHERE owner.userid = $1;`
+
+	rows, reassignOwnerStatementErr := tx.Query(reassignOwnerGenerator, d.Id())
+
+	defer rows.Close()
+
+	if reassignOwnerStatementErr {
+		tx.Rollback()
+		return reassignOwnerStatementErr
+	}
+
+	var reassignStatements []string
+
+	for rows.Next() {
+
+		var reassignStatement string
+
+		err := rows.Scan(&reassignStatement)
+		if err != nil {
+			//Im not sure how this can happen
+			tx.Rollback()
+			return err
+		}
+		append(reassignStatements, reassignStatement)
+	}
+
+	for _, statement := range reassignStatements {
+		_, err := tx.Exec(statement + redshiftClientConfig.user)
+
+		if err != nil {
+			//Im not sure how this can happen
+			tx.Rollback()
+			return err
+		}
+	}
+
+	_, dropUserErr := tx.Exec("DROP USER" + d.Get("username").(string))
+
+	if dropUserErr == nil {
+		tx.Commit()
+		return nil
+	} else {
+		tx.Rollback()
+		return dropUserErr
+	}
 }
 
 func resourceRedshiftUserImport(d *schema.ResourceData, meta interface{}) ([]*schema.ResourceData, error) {

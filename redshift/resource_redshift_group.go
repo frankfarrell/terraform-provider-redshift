@@ -10,7 +10,6 @@ import (
 	"time"
 )
 
-// name and list of users
 // https://docs.aws.amazon.com/redshift/latest/dg/r_CREATE_GROUP.html
 // https://docs.aws.amazon.com/redshift/latest/dg/r_DROP_GROUP.html
 // https://docs.aws.amazon.com/redshift/latest/dg/r_ALTER_GROUP.html
@@ -44,7 +43,7 @@ func redshiftGroup() *schema.Resource {
 func resourceRedshiftGroupExists(d *schema.ResourceData, meta interface{}) (b bool, e error) {
 	// Exists - This is called to verify a resource still exists. It is called prior to Read,
 	// and lowers the burden of Read to be able to assume the resource exists.
-	client := meta.(*sql.DB)
+	client := meta.(*Client).db
 
 	var name string
 
@@ -56,7 +55,7 @@ func resourceRedshiftGroupExists(d *schema.ResourceData, meta interface{}) (b bo
 }
 
 func resourceRedshiftGroupCreate(d *schema.ResourceData, meta interface{}) error {
-	redshiftClient := meta.(*sql.DB)
+	redshiftClient := meta.(*Client).db
 
 	tx, txErr := redshiftClient.Begin()
 	if txErr != nil {
@@ -103,7 +102,7 @@ func resourceRedshiftGroupCreate(d *schema.ResourceData, meta interface{}) error
 
 func resourceRedshiftGroupRead(d *schema.ResourceData, meta interface{}) error {
 
-	redshiftClient := meta.(*sql.DB)
+	redshiftClient := meta.(*Client).db
 
 	tx, txErr := redshiftClient.Begin()
 
@@ -161,7 +160,7 @@ func readRedshiftGroup(d *schema.ResourceData, tx *sql.Tx) error {
 
 func resourceRedshiftGroupUpdate(d *schema.ResourceData, meta interface{}) error {
 
-	redshiftClient := meta.(*sql.DB)
+	redshiftClient := meta.(*Client).db
 	tx, txErr := redshiftClient.Begin()
 	if txErr != nil {
 		panic(txErr)
@@ -215,7 +214,7 @@ func resourceRedshiftGroupUpdate(d *schema.ResourceData, meta interface{}) error
 
 func resourceRedshiftGroupDelete(d *schema.ResourceData, meta interface{}) error {
 
-	client := meta.(*sql.DB)
+	client := meta.(*Client).db
 
 	_, err := client.Exec("DROP GROUP " + d.Get("group_name").(string))
 

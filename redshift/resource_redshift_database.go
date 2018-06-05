@@ -29,7 +29,7 @@ func redshiftDatabase() *schema.Resource {
 			},
 			"owner": {
 				Type:     schema.TypeInt,
-				Required: true,
+				Optional: true,
 			},
 			"connection_limit": { //Cluster limit is 500
 				Type:     schema.TypeString,
@@ -43,7 +43,7 @@ func redshiftDatabase() *schema.Resource {
 func resourceRedshiftDatabaseExists(d *schema.ResourceData, meta interface{}) (b bool, e error) {
 	// Exists - This is called to verify a resource still exists. It is called prior to Read,
 	// and lowers the burden of Read to be able to assume the resource exists.
-	client := meta.(*sql.DB)
+	client := meta.(*Client).db
 
 	var name string
 
@@ -56,7 +56,7 @@ func resourceRedshiftDatabaseExists(d *schema.ResourceData, meta interface{}) (b
 
 func resourceRedshiftDatabaseCreate(d *schema.ResourceData, meta interface{}) error {
 
-	redshiftClient := meta.(*sql.DB)
+	redshiftClient := meta.(*Client).db
 	tx, txErr := redshiftClient.Begin()
 	if txErr != nil {
 		panic(txErr)
@@ -64,11 +64,12 @@ func resourceRedshiftDatabaseCreate(d *schema.ResourceData, meta interface{}) er
 
 	var createStatement string = "create database " + d.Get("database_name").(string)
 
+	//If no owner is specified it defaults to client user
 	if v, ok := d.GetOk("owner"); ok {
-
 		var usernames = GetUsersnamesForUsesysid(tx, []interface{}{v.(int)})
 		createStatement += " OWNER " + usernames[0]
 	}
+
 	if v, ok := d.GetOk("connection_limit"); ok {
 		createStatement += " CONNECTION LIMIT " + v.(string)
 	}
@@ -106,7 +107,7 @@ func resourceRedshiftDatabaseCreate(d *schema.ResourceData, meta interface{}) er
 
 func resourceRedshiftDatabaseRead(d *schema.ResourceData, meta interface{}) error {
 
-	redshiftClient := meta.(*sql.DB)
+	redshiftClient := meta.(*Client).db
 	tx, txErr := redshiftClient.Begin()
 	if txErr != nil {
 		panic(txErr)
@@ -151,7 +152,7 @@ func readRedshiftDatabase(d *schema.ResourceData, tx *sql.Tx) error {
 
 func resourceRedshiftDatabaseUpdate(d *schema.ResourceData, meta interface{}) error {
 
-	redshiftClient := meta.(*sql.DB)
+	redshiftClient := meta.(*Client).db
 	tx, txErr := redshiftClient.Begin()
 	if txErr != nil {
 		panic(txErr)
@@ -196,7 +197,7 @@ func resourceRedshiftDatabaseUpdate(d *schema.ResourceData, meta interface{}) er
 
 func resourceRedshiftDatabaseDelete(d *schema.ResourceData, meta interface{}) error {
 
-	client := meta.(*sql.DB)
+	client := meta.(*Client).db
 
 	_, err := client.Exec("drop database " + d.Get("database_name").(string))
 
