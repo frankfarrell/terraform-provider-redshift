@@ -17,8 +17,13 @@ type Config struct {
 	sslmode  string
 }
 
+type Client struct {
+	config Config
+	db *sql.DB
+}
+
 // New redshift client
-func (c *Config) Client() *sql.DB {
+func (c *Config) Client() *Client {
 
 	conninfo := fmt.Sprintf("sslmode=%v user=%v password=%v host=%v port=%v dbname=%v",
 		c.sslmode,
@@ -35,7 +40,10 @@ func (c *Config) Client() *sql.DB {
 		panic(err)
 	}
 
-	return db
+	return Client{
+		config: *c,
+		db:     db,
+	}
 }
 
 //When do we close the connection?
