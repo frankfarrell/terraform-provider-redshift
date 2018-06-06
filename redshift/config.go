@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"fmt"
 	_ "github.com/lib/pq"
-	"log"
 )
 
 // Config holds API and APP keys to authenticate to Datadog.
@@ -19,11 +18,11 @@ type Config struct {
 
 type Client struct {
 	config Config
-	db *sql.DB
+	db     *sql.DB
 }
 
 // New redshift client
-func (c *Config) Client() *Client {
+func (c *Config) Client() (*Client, error) {
 
 	conninfo := fmt.Sprintf("sslmode=%v user=%v password=%v host=%v port=%v dbname=%v",
 		c.sslmode,
@@ -34,16 +33,17 @@ func (c *Config) Client() *Client {
 		c.database)
 
 	db, err := sql.Open("postgres", conninfo)
-
 	if err != nil {
-		log.Fatal(err)
-		panic(err)
+		db.Close()
+		return nil, err
 	}
 
-	return &Client{
+	client := Client{
 		config: *c,
 		db:     db,
 	}
+
+	return &client, nil
 }
 
 //When do we close the connection?
