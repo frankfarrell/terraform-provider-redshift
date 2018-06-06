@@ -74,7 +74,10 @@ func resourceRedshiftUserExists(d *schema.ResourceData, meta interface{}) (b boo
 	var name string
 
 	err := client.QueryRow("SELECT usename FROM pg_user_info WHERE usesysid = $1", d.Id()).Scan(&name)
-	if err != nil {
+	switch {
+	case err == sql.ErrNoRows:
+		return false, nil
+	case err != nil:
 		return false, err
 	}
 	return true, nil

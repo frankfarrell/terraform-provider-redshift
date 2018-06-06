@@ -48,7 +48,10 @@ func resourceRedshiftDatabaseExists(d *schema.ResourceData, meta interface{}) (b
 	var name string
 
 	err := client.QueryRow("SELECT datname FROM pg_database_info WHERE datid = $1", d.Id()).Scan(&name)
-	if err != nil {
+	switch {
+	case err == sql.ErrNoRows:
+		return false, nil
+	case err != nil:
 		return false, err
 	}
 	return true, nil

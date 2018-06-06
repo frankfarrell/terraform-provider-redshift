@@ -48,7 +48,10 @@ func resourceRedshiftGroupExists(d *schema.ResourceData, meta interface{}) (b bo
 	var name string
 
 	err := client.QueryRow("SELECT groname FROM pg_group WHERE grosysid = $1", d.Id()).Scan(&name)
-	if err != nil {
+	switch {
+	case err == sql.ErrNoRows:
+		return false, nil
+	case err != nil:
 		return false, err
 	}
 	return true, nil
