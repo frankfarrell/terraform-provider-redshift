@@ -3,6 +3,8 @@ package redshift
 import (
 	"github.com/hashicorp/terraform/helper/schema"
 	"github.com/hashicorp/terraform/terraform"
+
+	"fmt"
 	"log"
 )
 
@@ -64,15 +66,17 @@ func providerConfigure(d *schema.ResourceData) (interface{}, error) {
 	}
 
 	log.Println("[INFO] Initializing Redshift client")
-	client := config.Client()
+	client, err := config.Client()
+	if err != nil {
+		return nil, err
+	}
+
 	db := client.db
 
-	//Test the connection
-	err := db.Ping()
-
-	if err != nil {
-		log.Println("[ERROR] Could not establish Redshift connection with credentials")
-		panic(err.Error()) // proper error handling instead of panic
+	// DB connection is not opened until the first query.
+	// Test the connection
+	if err = db.Ping(); err != nil {
+		return nil, fmt.Errorf("Redshift connection error: %v", err)
 	}
 
 	return client, nil
