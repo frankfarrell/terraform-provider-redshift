@@ -421,7 +421,11 @@ func resourceRedshiftUserImport(d *schema.ResourceData, meta interface{}) ([]*sc
 	return []*schema.ResourceData{d}, nil
 }
 
-func GetUsersnamesForUsesysid(tx *sql.Tx, db *sql.DB, usersIdsInterface []interface{}) []string {
+type Queryer interface {
+	Query(query string, args ...interface{}) (*sql.Rows, error)
+}
+
+func GetUsersnamesForUsesysid(q Queryer, usersIdsInterface []interface{}) []string {
 
 	var usersIds = make([]int, 0)
 
@@ -436,19 +440,7 @@ func GetUsersnamesForUsesysid(tx *sql.Tx, db *sql.DB, usersIdsInterface []interf
 
 	log.Print("Select user query: " + selectUserQuery)
 
-	var rows *sql.Rows
-	var err  error
-
-	//Crazy constructs, but I cant figure out a better way :)
-	if tx != nil {
-		txrows, txerr := tx.Query(selectUserQuery)
-		rows = txrows
-		err = txerr
-	} else {
-		dbrows, dberr := db.Query(selectUserQuery)
-		rows = dbrows
-		err = dberr
-	}
+	rows, err := q.Query(selectUserQuery)
 
 	if err != nil {
 		// handle this error better than this
