@@ -1,8 +1,20 @@
+
+variable "url" {
+  default = "localhost"
+}
+variable "username" {}
+variable "password" {}
+variable "database_primary" {}
+variable "database_test" {
+  default = "testdb"
+}
+
 provider redshift {
   "url" = "localhost",
-  user = "testroot",
-  password = "Rootpass123",
-  database = "dev"
+  "url" = "${var.url}",
+  user = "${var.username}",
+  password = "${var.password}",
+  database = "${var.database_primary}"
 }
 
 resource "redshift_user" "testuser"{
@@ -25,7 +37,24 @@ resource "redshift_group" "testgroup" {
 }
 
 resource "redshift_database" "testdb" {
-  "database_name" = "testdb",
+  "database_name" = "${var.database_test}",
   "owner" ="${redshift_user.testuser2.id}",
   "connection_limit" = "4"
+}
+
+provider redshift {
+  alias = "test"
+  "url" = "${var.url}",
+  user = "${var.username}",
+  password = "${var.password}",
+  database = "${var.database_test}"
+}
+
+resource "redshift_user" "testuser"{
+  provider = "redshift.test"
+  "username" = "testusernew2",
+  "password" = "Testpass123"
+  "connection_limit" = "3"
+  "createdb" = false
+  "valid_until" = "2018-07-10"
 }
