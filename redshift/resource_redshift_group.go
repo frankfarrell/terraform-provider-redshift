@@ -64,7 +64,7 @@ func resourceRedshiftGroupCreate(d *schema.ResourceData, meta interface{}) error
 
 	var createStatement string = "create group " + d.Get("group_name").(string)
 	if v, ok := d.GetOk("users"); ok {
-		var usernames = GetUsersnamesForUsesysid(tx, nil,  v.(*schema.Set).List())
+		var usernames = GetUsersnamesForUsesysid(tx, v.(*schema.Set).List())
 		createStatement += " WITH USER " + strings.Join(usernames, ", ")
 	}
 
@@ -185,7 +185,7 @@ func resourceRedshiftGroupUpdate(d *schema.ResourceData, meta interface{}) error
 
 		if len(usersRemoved) > 0 {
 
-			var usersRemovedAsString = GetUsersnamesForUsesysid(tx, nil, usersRemoved)
+			var usersRemovedAsString = GetUsersnamesForUsesysid(tx, usersRemoved)
 
 			if _, err := tx.Exec("ALTER GROUP " + d.Get("group_name").(string) + " DROP USER " + strings.Join(usersRemovedAsString, ", ")); err != nil {
 				return err
@@ -193,7 +193,7 @@ func resourceRedshiftGroupUpdate(d *schema.ResourceData, meta interface{}) error
 		}
 		if len(usersAdded) > 0 {
 
-			var usersAddedAsString = GetUsersnamesForUsesysid(tx, nil, usersAdded)
+			var usersAddedAsString = GetUsersnamesForUsesysid(tx, usersAdded)
 
 			if _, err := tx.Exec("ALTER GROUP " + d.Get("group_name").(string) + " ADD USER " + strings.Join(usersAddedAsString, ", ")); err != nil {
 				return err

@@ -62,7 +62,7 @@ func resourceRedshiftDatabaseCreate(d *schema.ResourceData, meta interface{}) er
 
 	//If no owner is specified it defaults to client user
 	if v, ok := d.GetOk("owner"); ok {
-		var usernames = GetUsersnamesForUsesysid(nil, redshiftClient, []interface{}{v.(int)})
+		var usernames = GetUsersnamesForUsesysid(redshiftClient, []interface{}{v.(int)})
 		createStatement += " OWNER " + usernames[0]
 	}
 
@@ -150,7 +150,7 @@ func resourceRedshiftDatabaseUpdate(d *schema.ResourceData, meta interface{}) er
 
 	if d.HasChange("owner") {
 
-		var username = GetUsersnamesForUsesysid(nil, redshiftClient, []interface{}{d.Get("owner").(int)})
+		var username = GetUsersnamesForUsesysid(redshiftClient, []interface{}{d.Get("owner").(int)})
 
 		if _, err := tx.Exec("ALTER DATABASE " + d.Get("database_name").(string) + " OWNER TO " + username[0]); err != nil {
 			return err
