@@ -406,6 +406,24 @@ func resourceRedshiftUserDelete(d *schema.ResourceData, meta interface{}) error 
 		}
 	}
 
+	//We need to drop all privileges and default privileges
+	rows, schemasError := redshiftClient.Query("select nspname from pg_namespace")
+	defer rows.Close()
+	if schemasError != nil{
+		return schemasError
+	}
+
+	for rows.Next() {
+		var schemaName string
+		err := rows.Scan(&schemaName)
+		if err != nil {
+			//Im not sure how this can happen
+			return err
+		}
+		redshiftClient.Exec("REVOKE ALL ON ALL TABLES IN SCHEMA "+ schemaName + " FROM " + d.Get("username"));
+		redshiftClient.Exec("ALTER DEFAULT PRIVILEGES IN SCHEMA "+ schemaName + " REVOKE ALL ON TABLES FROM " + d.Get("username") + " CASCADE");
+	}
+
 	_, dropUserErr := tx.Exec("DROP USER " + d.Get("username").(string))
 
 	if dropUserErr == nil {

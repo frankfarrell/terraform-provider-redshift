@@ -219,6 +219,24 @@ func resourceRedshiftGroupDelete(d *schema.ResourceData, meta interface{}) error
 
 	client := meta.(*Client).db
 
+	//We need to drop all privileges and default privileges
+	rows, schemasError := client.Query("select nspname from pg_namespace")
+	defer rows.Close()
+	if schemasError != nil{
+		return schemasError
+	}
+
+	for rows.Next() {
+		var schemaName string
+		err := rows.Scan(&schemaName)
+		if err != nil {
+			//Im not sure how this can happen
+			return err
+		}
+		client.Exec("REVOKE ALL ON ALL TABLES IN SCHEMA "+ schemaName + " FROM GROUP " + d.Get("group_name"));
+		client.Exec("ALTER DEFAULT PRIVILEGES IN SCHEMA "+ schemaName + " REVOKE ALL ON TABLES FROM GROUP " + d.Get("group_name") + " CASCADE");
+	}
+
 	_, err := client.Exec("DROP GROUP " + d.Get("group_name").(string))
 
 	if err != nil {
