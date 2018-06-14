@@ -46,6 +46,12 @@ resource "redshift_database" "testdb" {
   "owner" ="${redshift_user.testuser.id}",
   "connection_limit" = "4"
 }
+
+resource "redshift_schema" "testschema" {
+  "schema_name" = "testschema",
+  "owner" ="${redshift_user.testuser.id}",
+  "cascade_on_delete" = true
+}
 ```
 
 Creating a user who can only connect using IAM Credentials as described [here](https://docs.aws.amazon.com/redshift/latest/mgmt/generating-user-credentials.html)
@@ -70,6 +76,5 @@ resource "redshift_user" "testuser"{
 The easiest thing is probably to update your hosts file so that the url resolves to localhost
 
 ## TODO 
-1. All the other resources! 
-2. Port this to postgres
-3. Handle cascading deletes properly
+1. Database property for Schema
+2. Create and usage privileges for schemas
