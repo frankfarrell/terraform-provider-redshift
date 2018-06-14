@@ -3,7 +3,6 @@ package redshift
 import (
 	"github.com/hashicorp/terraform/helper/schema"
 	"github.com/hashicorp/terraform/terraform"
-
 	"fmt"
 	"log"
 )
@@ -49,6 +48,7 @@ func Provider() terraform.ResourceProvider {
 			"redshift_user":     redshiftUser(),
 			"redshift_group":    redshiftGroup(),
 			"redshift_database": redshiftDatabase(),
+			"redshift_schema":   redshiftSchema(),
 		},
 		ConfigureFunc: providerConfigure,
 	}
