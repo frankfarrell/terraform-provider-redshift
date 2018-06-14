@@ -10,11 +10,11 @@ variable "database_test" {
 }
 
 provider redshift {
-  "url" = "localhost",
   "url" = "${var.url}",
   user = "${var.username}",
   password = "${var.password}",
   database = "${var.database_primary}"
+  sslmode = "disable"
 }
 
 resource "redshift_user" "testuser"{
@@ -48,9 +48,10 @@ provider redshift {
   user = "${var.username}",
   password = "${var.password}",
   database = "${var.database_test}"
+  sslmode = "disable"
 }
 
-resource "redshift_user" "testuser"{
+resource "redshift_user" "testusernew2"{
   provider = "redshift.test"
   "username" = "testusernew2",
   "password" = "Testpass123"
