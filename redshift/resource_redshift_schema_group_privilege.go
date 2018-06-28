@@ -43,10 +43,12 @@ func redshiftSchemaGroupPrivilege() *schema.Resource {
 			"schema_id": {
 				Type:     schema.TypeInt,
 				Required: true,
+				ForceNew: true,
 			},
 			"group_id": {
 				Type:     schema.TypeInt,
 				Required: true,
+				ForceNew: true,
 			},
 			"select": {
 				Type:     schema.TypeBool,
@@ -73,6 +75,8 @@ func redshiftSchemaGroupPrivilege() *schema.Resource {
 				Optional: true,
 				Default:  false,
 			},
+			//TODO Execute, Languages, CREATE , USAGE
+			//TODO Do we need to give usage privileges in the first place to the group?
 		},
 	}
 }
@@ -112,25 +116,9 @@ func resourceRedshiftSchemaGroupPrivilegeCreate(d *schema.ResourceData, meta int
 	}
 
 
-	var grants []string
+	grants, err := validateGrants(d)
 
-	if v, ok := d.GetOk("select"); ok && v.(bool) {
-		grants = append(grants, "SELECT")
-	}
-	if v, ok := d.GetOk("insert"); ok && v.(bool) {
-		grants = append(grants, "INSERT")
-	}
-	if v, ok := d.GetOk("update"); ok && v.(bool) {
-		grants = append(grants, "UPDATE")
-	}
-	if v, ok := d.GetOk("delete"); ok && v.(bool) {
-		grants = append(grants, "DELETE")
-	}
-	if v, ok := d.GetOk("references"); ok && v.(bool) {
-		grants = append(grants, "REFERENCES")
-	}
-
-	if(len(grants) == 0){
+	if(err != nil){
 		tx.Rollback()
 		return error("Must have at least 1 privilige")
 	}
@@ -235,16 +223,117 @@ func readRedshiftSchemaGroupPrivilege(d *schema.ResourceData, tx *sql.Tx) error 
 }
 
 func resourceRedshiftSchemaGroupPrivilegeUpdate(d *schema.ResourceData, meta interface{}) error {
-	//TODO
+	redshiftClient := meta.(*Client).db
+	tx, txErr := redshiftClient.Begin()
+
+	if txErr != nil {
+		panic(txErr)
+	}
+
+	_, err := validateGrants(d)
+
+	if(err != nil){
+		tx.Rollback()
+		return error("Must have at least 1 privilige")
+	}
+
+	schema_name, schemaErr := GetSchemanNameForSchemaId(tx, d.Get("schema_id").(int))
+	if(schemaErr != nil){
+		log.Fatal(schemaErr)
+		tx.Rollback()
+		return schemaErr
+	}
+
+	group_name, groupErr := GetGroupNameForGroupId(tx, d.Get("group_id").(int))
+	if(groupErr != nil){
+		log.Fatal(groupErr)
+		tx.Rollback()
+		return groupErr
+	}
+
+	//Would be much nicer to do this with zip if possible
+	if err := updatePrivilege(tx, d, "select", "SELECT", schema_name, group_name); err != nil {
+		tx.Rollback()
+		return err
+	}
+	if err := updatePrivilege(tx, d, "insert", "INSERT", schema_name, group_name); err != nil {
+		tx.Rollback()
+		return  err
+	}
+	if err := updatePrivilege(tx, d, "update", "UPDATE", schema_name, group_name); err != nil {
+		tx.Rollback()
+		return err
+	}
+	if err := updatePrivilege(tx, d, "delete", "DELETE", schema_name, group_name); err != nil {
+		tx.Rollback()
+		return err
+	}
+	if err := updatePrivilege(tx, d, "references", "REFERENCES", schema_name, group_name); err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	tx.Commit()
+	return nil
 }
 
 func resourceRedshiftSchemaGroupPrivilegeDelete(d *schema.ResourceData, meta interface{}) error {
 	//TODO
 }
 
-func resourceRedshiftSchemaGroupPrivilegeImport(d *schema.ResourceData, meta interface{}) ([]*schema.ResourceData, error) {
+func resourceRedshiftSchemaGroupPrivilegeImport(d *schema.ResourceData, meta interface{}) ([]*schema.ResourceData, error)  {
 	if err := resourceRedshiftSchemaGroupPrivilegeRead(d, meta); err != nil {
 		return nil, err
 	}
 	return []*schema.ResourceData{d}, nil
+}
+
+func updatePrivilege(tx *sql.Tx, d *schema.ResourceData, attribute string, privilege string, schemaName string, groupName string) error{
+	if d.HasChange(attribute){
+		if(d.Get(attribute).(bool)){
+			if _, err := tx.Exec("GRANT " + privilege + " ALL TABLES IN SCHEMA " + schemaName + " TO  GROUP " + groupName); err != nil {
+				return err
+			}
+			if _, err := tx.Exec("ALTER DEFAULT PRIVILEGES IN SCHEMA " + schemaName + " GRANT " + privilege + " ON TABLES TO GROUP " + groupName); err != nil {
+				return err
+			}
+			return nil
+		} else{
+			if _, err := tx.Exec("REVOKE " + privilege + " ON  ALL TABLES IN SCHEMA " + schemaName + " FROM GROUP " + groupName); err != nil {
+				return err
+			}
+			if _, err := tx.Exec("ALTER DEFAULT PRIVILEGES IN SCHEMA " + schemaName + " REVOKE " + privilege + " ON TABLES FROM GROUP " + groupName); err != nil {
+				return err
+			}
+			return nil
+		}
+	}else{
+		return nil
+	}
+}
+
+func validateGrants(d *schema.ResourceData)([]string, error){
+	var grants []string
+
+	if v, ok := d.GetOk("select"); ok && v.(bool) {
+		grants = append(grants, "SELECT")
+	}
+	if v, ok := d.GetOk("insert"); ok && v.(bool) {
+		grants = append(grants, "INSERT")
+	}
+	if v, ok := d.GetOk("update"); ok && v.(bool) {
+		grants = append(grants, "UPDATE")
+	}
+	if v, ok := d.GetOk("delete"); ok && v.(bool) {
+		grants = append(grants, "DELETE")
+	}
+	if v, ok := d.GetOk("references"); ok && v.(bool) {
+		grants = append(grants, "REFERENCES")
+	}
+
+	if(len(grants) == 0){
+		return nil, error("Must have at least 1 privilige")
+	}else{
+		return grants, nil
+	}
 }
