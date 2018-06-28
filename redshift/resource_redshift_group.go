@@ -254,6 +254,21 @@ func resourceRedshiftGroupImport(d *schema.ResourceData, meta interface{}) ([]*s
 	return []*schema.ResourceData{d}, nil
 }
 
+func GetGroupNameForGroupId(q Queryer, grosysid int) (string, error) {
+
+	var name string
+
+	err := q.QueryRow("SELECT groname FROM pg_group WHERE grosysid = $1", grosysid).Scan(&name)
+	switch {
+	case err == sql.ErrNoRows:
+		//Is this a good idea?
+		return nil, err
+	case err != nil:
+		return nil, err
+	}
+	return name, nil
+}
+
 // Complexity: O(n^2)
 // Returns a minus b
 // Inspired by https://github.com/juliangruber/go-intersect/blob/master/intersect.go
