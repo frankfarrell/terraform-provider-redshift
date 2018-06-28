@@ -48,7 +48,11 @@ func resourceRedshiftSchemaExists(d *schema.ResourceData, meta interface{}) (b b
 
 	var name string
 
-	err := client.QueryRow("SELECT nspname FROM pg_namespace WHERE oid = $1", d.Id()).Scan(&name)
+	var existenceQuery string = "SELECT nspname FROM pg_namespace WHERE oid = $1"
+
+	log.Print("Does schema exist query: " + existenceQuery + ", " + d.Id())
+
+	err := client.QueryRow(existenceQuery, d.Id()).Scan(&name)
 	switch {
 	case err == sql.ErrNoRows:
 		return false, nil
@@ -82,12 +86,14 @@ func resourceRedshiftSchemaCreate(d *schema.ResourceData, meta interface{}) erro
 
 	var oid string
 
-	err := redshiftClient.QueryRow("SELECT oid FROM pg_namespace WHERE nspname = $1", d.Get("shema_name").(string)).Scan(&oid)
+	err := redshiftClient.QueryRow("SELECT oid FROM pg_namespace WHERE nspname = $1", d.Get("schema_name").(string)).Scan(&oid)
 
 	if err != nil {
 		log.Fatal(err)
 		return err
 	}
+
+	log.Print("Created schema with oid: " + oid)
 
 	d.SetId(oid)
 
