@@ -4,26 +4,11 @@ import (
 	"github.com/hashicorp/terraform/helper/schema"
 	"database/sql"
 	"log"
-	"time"
 	"strings"
 )
 
 //https://docs.aws.amazon.com/redshift/latest/dg/r_GRANT.html
 //https://docs.aws.amazon.com/redshift/latest/dg/r_REVOKE.html
-
-/*
-
-
-
-
-Permission model is limited:
-	Grant
-	Then do ALTER DEFAULT privileges
-
-
-How to read:
-	SELECT HAS_TABLE_PRIVILEGE('user1', 'table3', 'select');
- */
 
 /*
 TODO Id is schema_id || '_' || group_id, not sure if that is consistent for terraform --frankfarrell
@@ -278,7 +263,39 @@ func resourceRedshiftSchemaGroupPrivilegeUpdate(d *schema.ResourceData, meta int
 }
 
 func resourceRedshiftSchemaGroupPrivilegeDelete(d *schema.ResourceData, meta interface{}) error {
-	//TODO
+
+	redshiftClient := meta.(*Client).db
+	tx, txErr := redshiftClient.Begin()
+
+	if txErr != nil {
+		panic(txErr)
+	}
+
+	schema_name, schemaErr := GetSchemanNameForSchemaId(tx, d.Get("schema_id").(int))
+	if(schemaErr != nil){
+		log.Fatal(schemaErr)
+		tx.Rollback()
+		return schemaErr
+	}
+
+	group_name, groupErr := GetGroupNameForGroupId(tx, d.Get("group_id").(int))
+	if(groupErr != nil){
+		log.Fatal(groupErr)
+		tx.Rollback()
+		return groupErr
+	}
+
+	if _, err := tx.Exec("REVOKE ALL ON  ALL TABLES IN SCHEMA " + schema_name + " FROM GROUP " + group_name); err != nil {
+		tx.Rollback()
+		return err
+	}
+	if _, err := tx.Exec("ALTER DEFAULT PRIVILEGES IN SCHEMA " + schema_name + " REVOKE ALL ON TABLES FROM GROUP " + group_name); err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	tx.Commit()
+	return nil
 }
 
 func resourceRedshiftSchemaGroupPrivilegeImport(d *schema.ResourceData, meta interface{}) ([]*schema.ResourceData, error)  {
