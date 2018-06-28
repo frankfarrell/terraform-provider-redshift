@@ -444,6 +444,7 @@ func resourceRedshiftUserImport(d *schema.ResourceData, meta interface{}) ([]*sc
 
 type Queryer interface {
 	Query(query string, args ...interface{}) (*sql.Rows, error)
+	QueryRow(query string, args ...interface{}) *sql.Row
 }
 
 func GetUsersnamesForUsesysid(q Queryer, usersIdsInterface []interface{}) []string {
