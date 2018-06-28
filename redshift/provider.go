@@ -49,6 +49,7 @@ func Provider() terraform.ResourceProvider {
 			"redshift_group":    redshiftGroup(),
 			"redshift_database": redshiftDatabase(),
 			"redshift_schema":   redshiftSchema(),
+			"redshift_group_schema_privilege": redshiftSchemaGroupPrivilege(),
 		},
 		ConfigureFunc: providerConfigure,
 	}

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"log"
 	"strings"
+	"fmt"
 )
 
 //https://docs.aws.amazon.com/redshift/latest/dg/r_GRANT.html
@@ -105,7 +106,7 @@ func resourceRedshiftSchemaGroupPrivilegeCreate(d *schema.ResourceData, meta int
 
 	if(err != nil){
 		tx.Rollback()
-		return error("Must have at least 1 privilige")
+		return NewError("Must have at least 1 privilige")
 	}
 
 	schema_name, schemaErr := GetSchemanNameForSchemaId(tx, d.Get("schema_id").(int))
@@ -138,7 +139,7 @@ func resourceRedshiftSchemaGroupPrivilegeCreate(d *schema.ResourceData, meta int
 		return err
 	}
 
-	d.SetId(d.Get("schema_id").(int) + "_" + d.Get("group_id").(int))
+	d.SetId(fmt.Sprint(d.Get("schema_id").(int)) + "_" + fmt.Sprint(d.Get("group_id").(int)))
 
 	readErr := readRedshiftSchemaGroupPrivilege(d, tx)
 
@@ -219,7 +220,7 @@ func resourceRedshiftSchemaGroupPrivilegeUpdate(d *schema.ResourceData, meta int
 
 	if(err != nil){
 		tx.Rollback()
-		return error("Must have at least 1 privilige")
+		return NewError("Must have at least 1 privilige")
 	}
 
 	schema_name, schemaErr := GetSchemanNameForSchemaId(tx, d.Get("schema_id").(int))
@@ -349,8 +350,22 @@ func validateGrants(d *schema.ResourceData)([]string, error){
 	}
 
 	if(len(grants) == 0){
-		return nil, error("Must have at least 1 privilige")
+		return nil, NewError("Must have at least 1 privilige")
 	}else{
 		return grants, nil
 	}
+}
+
+// errorString is a trivial implementation of error.
+type errorString struct {
+	s string
+}
+
+func (e *errorString) Error() string {
+	return e.s
+}
+
+// New returns an error that formats as the given text.
+func NewError(text string) error {
+	return &errorString{text}
 }
