@@ -233,8 +233,8 @@ func resourceRedshiftGroupDelete(d *schema.ResourceData, meta interface{}) error
 			//Im not sure how this can happen
 			return err
 		}
-		client.Exec("REVOKE ALL ON ALL TABLES IN SCHEMA "+ schemaName + " FROM GROUP " + d.Get("group_name"));
-		client.Exec("ALTER DEFAULT PRIVILEGES IN SCHEMA "+ schemaName + " REVOKE ALL ON TABLES FROM GROUP " + d.Get("group_name") + " CASCADE");
+		client.Exec("REVOKE ALL ON ALL TABLES IN SCHEMA "+ schemaName + " FROM GROUP " + d.Get("group_name").(string));
+		client.Exec("ALTER DEFAULT PRIVILEGES IN SCHEMA "+ schemaName + " REVOKE ALL ON TABLES FROM GROUP " + d.Get("group_name").(string) + " CASCADE");
 	}
 
 	_, err := client.Exec("DROP GROUP " + d.Get("group_name").(string))
@@ -262,9 +262,9 @@ func GetGroupNameForGroupId(q Queryer, grosysid int) (string, error) {
 	switch {
 	case err == sql.ErrNoRows:
 		//Is this a good idea?
-		return nil, err
+		return "", err
 	case err != nil:
-		return nil, err
+		return "", err
 	}
 	return name, nil
 }

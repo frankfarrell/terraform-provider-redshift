@@ -197,9 +197,9 @@ func GetSchemanNameForSchemaId(q Queryer, schemaId int) (string, error) {
 	switch {
 	case err == sql.ErrNoRows:
 		//Is this a good idea?
-		return nil, err
+		return "", err
 	case err != nil:
-		return nil, err
+		return "", err
 	}
 	return name, nil
 }

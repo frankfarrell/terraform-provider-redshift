@@ -420,8 +420,8 @@ func resourceRedshiftUserDelete(d *schema.ResourceData, meta interface{}) error 
 			//Im not sure how this can happen
 			return err
 		}
-		redshiftClient.Exec("REVOKE ALL ON ALL TABLES IN SCHEMA "+ schemaName + " FROM " + d.Get("username"));
-		redshiftClient.Exec("ALTER DEFAULT PRIVILEGES IN SCHEMA "+ schemaName + " REVOKE ALL ON TABLES FROM " + d.Get("username") + " CASCADE");
+		redshiftClient.Exec("REVOKE ALL ON ALL TABLES IN SCHEMA "+ schemaName + " FROM " + d.Get("username").(string));
+		redshiftClient.Exec("ALTER DEFAULT PRIVILEGES IN SCHEMA "+ schemaName + " REVOKE ALL ON TABLES FROM " + d.Get("username").(string) + " CASCADE");
 	}
 
 	_, dropUserErr := tx.Exec("DROP USER " + d.Get("username").(string))
