@@ -130,6 +130,8 @@ func resourceRedshiftUserCreate(d *schema.ResourceData, meta interface{}) error 
 		return err
 	}
 
+	log.Print("User created, waiting 5 seconds for propagation")
+
 	//The changes do not propagate instantly
 	time.Sleep(5 * time.Second)
 
@@ -137,9 +139,12 @@ func resourceRedshiftUserCreate(d *schema.ResourceData, meta interface{}) error 
 	err := tx.QueryRow("SELECT usesysid FROM pg_user_info WHERE usename = $1", d.Get("username").(string)).Scan(&usesysid)
 
 	if err != nil {
+		log.Print("User does not exist in pg_user_info table")
 		log.Fatal(err)
 		return err
 	}
+
+	log.Printf("usesysid for user is %s", usesysid )
 
 	d.SetId(usesysid)
 
@@ -178,6 +183,7 @@ func resourceRedshiftUserRead(d *schema.ResourceData, meta interface{}) error {
 
 func readRedshiftUser(d *schema.ResourceData, tx *sql.Tx) error {
 
+
 	var (
 		usename      string
 		usecreatedb  bool
@@ -186,25 +192,34 @@ func readRedshiftUser(d *schema.ResourceData, tx *sql.Tx) error {
 		useconnlimit sql.NullString
 	)
 
-	err := tx.QueryRow("select usename, usecreatedb, usesuper, valuntil, useconnlimit "+
-		"from pg_user_info where usesysid = $1", d.Id()).Scan(&usename, &usecreatedb, &usesuper, &valuntil, &useconnlimit)
+	var readUserQuery string  = "select usename, usecreatedb, usesuper, valuntil, useconnlimit "+
+		"from pg_user_info where usesysid = $1"
+
+	log.Print("Reading redshift user with query: " + readUserQuery)
+
+	err := tx.QueryRow(readUserQuery, d.Id()).Scan(&usename, &usecreatedb, &usesuper, &valuntil, &useconnlimit)
 
 	if err != nil {
+		log.Print("Reading user does not exist")
 		log.Fatal(err)
 		return err
 	}
+
+	log.Print("Succesfully read redshift user")
 
 	d.Set("username", usename)
 	d.Set("createdb", usecreatedb)
 	d.Set("superuser", usesuper)
 
 	if valuntil.Valid {
+		log.Print("Valid until " + valuntil.String)
 		d.Set("valid_until", valuntil.String)
 	} else {
 		d.Set("valid_until", nil)
 	}
 
 	if useconnlimit.Valid {
+		log.Print("User connection limit " + useconnlimit.String)
 		d.Set("connection_limit", useconnlimit.String)
 	} else {
 		d.Set("connection_limit", nil)

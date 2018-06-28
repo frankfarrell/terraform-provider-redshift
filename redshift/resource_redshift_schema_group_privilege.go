@@ -78,7 +78,7 @@ func resourceRedshiftSchemaGroupPrivilegeExists(d *schema.ResourceData, meta int
 		from pg_group pu, pg_default_acl acl, pg_namespace nsp
 		where acl.defaclnamespace = nsp.oid and
 		array_to_string(acl.defaclacl, '|') LIKE '%' || pu.groname || '=%'
-		and nsp.oid || '_' || groupid = $1`,
+		and nsp.oid || '_' || pu.grosysid = $1`,
 		d.Id()).Scan(&aclId)
 
 
@@ -190,7 +190,7 @@ func readRedshiftSchemaGroupPrivilege(d *schema.ResourceData, tx *sql.Tx) error 
 			where acl.defaclnamespace = nsp.oid and
 			array_to_string(acl.defaclacl, '|') LIKE '%' || pu.groname || '=%'
 			and nsp.oid = $1
-			and groupid = $2`
+			and pu.grosysid = $2`
 
 	schemaPrivilegesError := tx.QueryRow(has_schema_privilege_query, d.Get("schema_id").(int), d.Get("group_id").(int)).Scan(&selectPrivilege, &updatePrivilege, &insertPrivilege, &deletePrivilege, &referencesPrivilege)
 

@@ -27,35 +27,32 @@ resource "redshift_user" "testuser"{
 resource "redshift_user" "testuser2"{
   "username" = "testuser8",
   "password" = "Testpass123"
-  "connection_limit" = "4"
+  "connection_limit" = "1"
+  "createdb" = true
 }
 
 
 resource "redshift_group" "testgroup" {
   "group_name" = "testgroup"
-  "users" = ["${redshift_user.testuser.id}"]
+  "users" = ["${redshift_user.testuser.id}", "${redshift_user.testuser2.id}"]
 }
 
-resource "redshift_database" "testdb" {
-  "database_name" = "${var.database_test}",
-  "owner" ="${redshift_user.testuser2.id}",
-  "connection_limit" = "4"
+resource "redshift_schema" "testschema" {
+  "schema_name" = "testschemax",
+  "cascade_on_delete" = true
 }
 
-provider redshift {
-  alias = "test"
-  "url" = "${var.url}",
-  user = "${var.username}",
-  password = "${var.password}",
-  database = "${var.database_test}"
-  sslmode = "disable"
+resource "redshift_group_schema_privilege" "testgroup_testchema_privileges" {
+  "schema_id" = "${redshift_schema.testschema.id}"
+  "group_id" = "${redshift_group.testgroup.id}"
+  "select" = true
+  "insert" = true
+  "update" = true
 }
 
-resource "redshift_user" "testusernew2"{
-  provider = "redshift.test"
-  "username" = "testusernew2",
-  "password" = "Testpass123"
-  "connection_limit" = "3"
-  "createdb" = false
-  "valid_until" = "2018-07-10"
-}
+
+#resource "redshift_database" "testdb" {
+#  "database_name" = "${var.database_test}",
+#  "owner" ="${redshift_user.testuser2.id}",
+#  "connection_limit" = "4"
+#}
