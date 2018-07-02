@@ -4,7 +4,9 @@ Manage Redshift users, groups, privileges, databases and schemas. It runs the SQ
 in transactions, and also reads the state from the tables that store this state, eg pg_user_info, pg_group etc. The underlying tables are more or less equivalent to the postgres tables, 
 but some tables are not accessible in Redshift. 
 
-Currently only supports users, groups and databases. Privileges and schemas coming soon! 
+Currently supports users, groups, schemas and databases. You can set privileges for groups on schemas. Per user schema privileges will be added at a later date. 
+
+Note that schemas are the lowest level of granularity here, tables should be created by some other tool, for instance flyway. 
 
 ## Limitations
 For authoritative limitations, please see the Redshift documentations. 
