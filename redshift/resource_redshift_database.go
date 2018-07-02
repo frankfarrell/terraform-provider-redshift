@@ -23,7 +23,7 @@ func redshiftDatabase() *schema.Resource {
 		},
 
 		Schema: map[string]*schema.Schema{
-			"database_name": { //This isn't immutable. The usesysid returned should be used as the id
+			"database_name": { //This isn't immutable. The datid returned should be used as the id
 				Type:     schema.TypeString,
 				Required: true,
 			},
