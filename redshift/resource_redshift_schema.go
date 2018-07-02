@@ -23,13 +23,16 @@ func redshiftSchema() *schema.Resource {
 		},
 
 		Schema: map[string]*schema.Schema{
-			"schema_name": { //This isn't immutable. The usesysid returned should be used as the id
+			"schema_name": {
 				Type:     schema.TypeString,
 				Required: true,
+				Description: "This is not immutable, but it probably should be!",
 			},
 			"owner": {
 				Type:     schema.TypeInt,
 				Optional: true,
+				Computed: true,
+				Description: "Defaults to user specified in provider",
 			},
 			"cascade_on_delete": {
 				Type:     schema.TypeBool,
