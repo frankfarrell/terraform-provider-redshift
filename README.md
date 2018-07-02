@@ -1,5 +1,8 @@
 # Terraform Redshift Provider
 
+[![Codacy Badge](https://api.codacy.com/project/badge/Grade/076b7e35151040f1802b500f218950d1)](https://www.codacy.com/app/frankfarrell/terraform-provider-redshift?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=frankfarrell/terraform-provider-redshift&amp;utm_campaign=Badge_Grade)
+[![Build Status](https://travis-ci.org/frankfarrell/terraform-provider-redshift.svg?branch=master)](https://travis-ci.org/frankfarrell/terraform-provider-redshift)
+
 Manage Redshift users, groups, privileges, databases and schemas. It runs the SQL queries necessary to manage these (CREATE USER, DELETE DATABASE etc)
 in transactions, and also reads the state from the tables that store this state, eg pg_user_info, pg_group etc. The underlying tables are more or less equivalent to the postgres tables, 
 but some tables are not accessible in Redshift. 
@@ -8,13 +11,17 @@ Currently supports users, groups, schemas and databases. You can set privileges 
 
 Note that schemas are the lowest level of granularity here, tables should be created by some other tool, for instance flyway. 
 
-## Limitations
-For authoritative limitations, please see the Redshift documentations. 
-1) You cannot delete the database you are currently connected to. 
-2) You cannot set table specific privileges since this provider is table agnostic (for now, if you think it would be feasible to manage tables let me know)
-3) On importing a user, it is impossible to read the password (or even the md hash of the password, since Redshift restricts access to pg_shadow)
+# Get it:
+Download for amd64 (for other architectures and OSes you can build from source as descibed below)
+* [Windows](https://github.com/frankfarrell/terraform-provider-redshift/raw/master/dist/windows/amd64/terraform-provider-redshift_v0.0.1_x4.exe)
+* [Linux](https://github.com/frankfarrell/terraform-provider-redshift/raw/master/dist/linux/amd64/terraform-provider-redshift_v0.0.1_x4)
+* [Mac](https://github.com/frankfarrell/terraform-provider-redshift/raw/master/dist/darwin/amd64/terraform-provider-redshift_v0.0.1_x4)
 
-## Example: 
+Add to terraform plugins directory: https://www.terraform.io/docs/configuration/providers.html#third-party-plugins
+
+You wll need to run `terraform init to download install the plugin from here`
+
+## Examples: 
 
 Provider configuration
 ```
@@ -112,11 +119,23 @@ resource "redshift_user" "testuser"{
 }
 ```
 
-## Prequisites to development
+## Things to note
+### Limitations
+For authoritative limitations, please see the Redshift documentations. 
+1) You cannot delete the database you are currently connected to. 
+2) You cannot set table specific privileges since this provider is table agnostic (for now, if you think it would be feasible to manage tables let me know)
+3) On importing a user, it is impossible to read the password (or even the md hash of the password, since Redshift restricts access to pg_shadow)
+
+### I usually connect through an ssh tunnel, what do I do?
+The easiest thing is probably to update your hosts file so that the url resolves to localhost
+
+## Contributing: 
+
+### Prequisites to development
 1. Go installed
 2. Terraform installed locally
 
-## Building: 
+### Building: 
 1. Run `go build -o terraform-provider-redshift_v0.0.1_x4.exe`. You will need to tweak this with GOOS and GOARCH if you are planning to build it for different OSes and architectures
 2. Add to terraform plugins directory: https://www.terraform.io/docs/configuration/providers.html#third-party-plugins
 
@@ -124,9 +143,6 @@ You can debug crudely by setting the TF_LOG env variable to DEBUG. Eg
 ```
 $ TF_LOG=DEBUG terraform apply
 ```
-
-## I usually connect through an ssh tunnel, what do I do?
-The easiest thing is probably to update your hosts file so that the url resolves to localhost
 
 ## TODO 
 1. Database property for Schema
