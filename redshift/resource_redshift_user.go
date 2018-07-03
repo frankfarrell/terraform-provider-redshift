@@ -144,7 +144,7 @@ func resourceRedshiftUserCreate(d *schema.ResourceData, meta interface{}) error 
 		return err
 	}
 
-	log.Printf("usesysid for user is %s", usesysid )
+	log.Printf("usesysid for user is %s", usesysid)
 
 	d.SetId(usesysid)
 
@@ -183,7 +183,6 @@ func resourceRedshiftUserRead(d *schema.ResourceData, meta interface{}) error {
 
 func readRedshiftUser(d *schema.ResourceData, tx *sql.Tx) error {
 
-
 	var (
 		usename      string
 		usecreatedb  bool
@@ -192,7 +191,7 @@ func readRedshiftUser(d *schema.ResourceData, tx *sql.Tx) error {
 		useconnlimit sql.NullString
 	)
 
-	var readUserQuery string  = "select usename, usecreatedb, usesuper, valuntil, useconnlimit "+
+	var readUserQuery string = "select usename, usecreatedb, usesuper, valuntil, useconnlimit " +
 		"from pg_user_info where usesysid = $1"
 
 	log.Print("Reading redshift user with query: " + readUserQuery)
@@ -349,8 +348,7 @@ func resourceRedshiftUserDelete(d *schema.ResourceData, meta interface{}) error 
 	// See some discussion her: https://dba.stackexchange.com/questions/143938/drop-user-in-redshift-which-has-privilege-on-some-object
 	//
 	// Derived from https://github.com/awslabs/amazon-redshift-utils/blob/master/src/AdminViews/v_find_dropuser_objs.sql
-	var reassignOwnerGenerator string =
-		`SELECT owner.ddl
+	var reassignOwnerGenerator string = `SELECT owner.ddl
 		FROM (
 				-- Functions owned by the user
 				SELECT pgu.usesysid,
@@ -391,7 +389,7 @@ func resourceRedshiftUserDelete(d *schema.ResourceData, meta interface{}) error 
 
 	defer rows.Close()
 
-	if reassignOwnerStatementErr != nil{
+	if reassignOwnerStatementErr != nil {
 		tx.Rollback()
 		return reassignOwnerStatementErr
 	}
@@ -424,7 +422,7 @@ func resourceRedshiftUserDelete(d *schema.ResourceData, meta interface{}) error 
 	//We need to drop all privileges and default privileges
 	rows, schemasError := redshiftClient.Query("select nspname from pg_namespace")
 	defer rows.Close()
-	if schemasError != nil{
+	if schemasError != nil {
 		return schemasError
 	}
 
@@ -435,8 +433,8 @@ func resourceRedshiftUserDelete(d *schema.ResourceData, meta interface{}) error 
 			//Im not sure how this can happen
 			return err
 		}
-		redshiftClient.Exec("REVOKE ALL ON ALL TABLES IN SCHEMA "+ schemaName + " FROM " + d.Get("username").(string));
-		redshiftClient.Exec("ALTER DEFAULT PRIVILEGES IN SCHEMA "+ schemaName + " REVOKE ALL ON TABLES FROM " + d.Get("username").(string) + " CASCADE");
+		redshiftClient.Exec("REVOKE ALL ON ALL TABLES IN SCHEMA " + schemaName + " FROM " + d.Get("username").(string))
+		redshiftClient.Exec("ALTER DEFAULT PRIVILEGES IN SCHEMA " + schemaName + " REVOKE ALL ON TABLES FROM " + d.Get("username").(string) + " CASCADE")
 	}
 
 	_, dropUserErr := tx.Exec("DROP USER " + d.Get("username").(string))

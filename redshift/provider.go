@@ -1,9 +1,9 @@
 package redshift
 
 import (
+	"fmt"
 	"github.com/hashicorp/terraform/helper/schema"
 	"github.com/hashicorp/terraform/terraform"
-	"fmt"
 	"log"
 )
 
@@ -45,10 +45,10 @@ func Provider() terraform.ResourceProvider {
 			},
 		},
 		ResourcesMap: map[string]*schema.Resource{
-			"redshift_user":     redshiftUser(),
-			"redshift_group":    redshiftGroup(),
-			"redshift_database": redshiftDatabase(),
-			"redshift_schema":   redshiftSchema(),
+			"redshift_user":                   redshiftUser(),
+			"redshift_group":                  redshiftGroup(),
+			"redshift_database":               redshiftDatabase(),
+			"redshift_schema":                 redshiftSchema(),
 			"redshift_group_schema_privilege": redshiftSchemaGroupPrivilege(),
 		},
 		ConfigureFunc: providerConfigure,

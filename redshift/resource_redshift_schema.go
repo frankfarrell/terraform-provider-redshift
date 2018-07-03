@@ -1,15 +1,16 @@
 package redshift
 
 import (
-	"github.com/hashicorp/terraform/helper/schema"
 	"database/sql"
+	"github.com/hashicorp/terraform/helper/schema"
 	"log"
 	"time"
 )
+
 /*
 TODO
 Add database property. This will require a new connection since you can't have databse agnostic connections in redshift/postgres
- */
+*/
 
 func redshiftSchema() *schema.Resource {
 	return &schema.Resource{
@@ -24,21 +25,21 @@ func redshiftSchema() *schema.Resource {
 
 		Schema: map[string]*schema.Schema{
 			"schema_name": {
-				Type:     schema.TypeString,
-				Required: true,
+				Type:        schema.TypeString,
+				Required:    true,
 				Description: "This is not immutable, but it probably should be!",
 			},
 			"owner": {
-				Type:     schema.TypeInt,
-				Optional: true,
-				Computed: true,
+				Type:        schema.TypeInt,
+				Optional:    true,
+				Computed:    true,
 				Description: "Defaults to user specified in provider",
 			},
 			"cascade_on_delete": {
-				Type:     schema.TypeBool,
-				Optional: true,
+				Type:        schema.TypeBool,
+				Optional:    true,
 				Description: "Keyword that indicates to automatically drop all objects in the schema, such as tables and functions. By default it doesn't for your safety",
-				Default:  false,
+				Default:     false,
 			},
 		},
 	}
@@ -116,8 +117,8 @@ func resourceRedshiftSchemaRead(d *schema.ResourceData, meta interface{}) error 
 
 func readRedshiftSchema(d *schema.ResourceData, db *sql.DB) error {
 	var (
-		schema_name  string
-		owner        int
+		schema_name string
+		owner       int
 	)
 
 	err := db.QueryRow("select nspname, nspowner from pg_namespace where oid = $1", d.Id()).Scan(&schema_name, &owner)
