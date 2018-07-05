@@ -30,6 +30,7 @@ func redshiftDatabase() *schema.Resource {
 			"owner": {
 				Type:     schema.TypeInt,
 				Optional: true,
+				Computed: true,
 			},
 			"connection_limit": { //Cluster limit is 500
 				Type:     schema.TypeString,
