@@ -126,8 +126,7 @@ func resourceRedshiftUserCreate(d *schema.ResourceData, meta interface{}) error 
 	}
 
 	if _, err := tx.Exec(createStatement); err != nil {
-		log.Fatal(err)
-		return err
+		return fmt.Errorf("Could not create redshift user: %s", err)
 	}
 
 	log.Print("User created, waiting 5 seconds for propagation")
