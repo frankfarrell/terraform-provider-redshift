@@ -2,6 +2,7 @@
 *.dll
 *.so
 *.dylib
+terraform-provider-redshift
 
 # Test binary, build with `go test -c`
 *.test
