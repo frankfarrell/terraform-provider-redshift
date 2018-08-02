@@ -150,14 +150,13 @@ func resourceRedshiftUserCreate(d *schema.ResourceData, meta interface{}) error 
 
 	readErr := readRedshiftUser(d, tx)
 
-	if readErr == nil {
-		tx.Commit()
-		return nil
-	} else {
+	if readErr != nil {
 		tx.Rollback()
 		return readErr
 	}
 
+	tx.Commit()
+	return nil
 }
 
 func resourceRedshiftUserRead(d *schema.ResourceData, meta interface{}) error {
@@ -172,13 +171,13 @@ func resourceRedshiftUserRead(d *schema.ResourceData, meta interface{}) error {
 
 	err := readRedshiftUser(d, tx)
 
-	if err == nil {
-		tx.Commit()
-		return nil
-	} else {
+	if err != nil {
 		tx.Rollback()
 		return err
 	}
+
+	tx.Commit()
+	return nil
 }
 
 func readRedshiftUser(d *schema.ResourceData, tx *sql.Tx) error {
@@ -292,37 +291,34 @@ func resourceRedshiftUserUpdate(d *schema.ResourceData, meta interface{}) error 
 
 	err := readRedshiftUser(d, tx)
 
-	if err == nil {
-		tx.Commit()
-		return nil
-	} else {
+	if err != nil {
 		tx.Rollback()
 		return err
 	}
+
+	tx.Commit()
+	return nil
 }
 
 func resetPassword(tx *sql.Tx, d *schema.ResourceData, username string) error {
 
 	if v, ok := d.GetOk("password_disabled"); ok && v.(bool) {
-
 		var disablePasswordQuery = "alter user " + username + " password disable"
 
 		if _, err := tx.Exec(disablePasswordQuery); err != nil {
 			return err
 		}
 		return nil
-
-	} else {
-		var resetPasswordQuery = "alter user " + username + " password '" + d.Get("password").(string) + "' "
-		if v, ok := d.GetOk("valid_until"); ok {
-			resetPasswordQuery += " VALID UNTIL '" + v.(string) + "'"
-
-		}
-		if _, err := tx.Exec(resetPasswordQuery); err != nil {
-			return err
-		}
-		return nil
 	}
+
+	var resetPasswordQuery = "alter user " + username + " password '" + d.Get("password").(string) + "' "
+	if v, ok := d.GetOk("valid_until"); ok {
+		resetPasswordQuery += " VALID UNTIL '" + v.(string) + "'"
+	}
+	if _, err := tx.Exec(resetPasswordQuery); err != nil {
+		return err
+	}
+	return nil
 }
 
 func resourceRedshiftUserDelete(d *schema.ResourceData, meta interface{}) error {
@@ -439,13 +435,13 @@ func resourceRedshiftUserDelete(d *schema.ResourceData, meta interface{}) error 
 
 	_, dropUserErr := tx.Exec("DROP USER " + d.Get("username").(string))
 
-	if dropUserErr == nil {
-		tx.Commit()
-		return nil
-	} else {
+	if dropUserErr != nil {
 		tx.Rollback()
 		return dropUserErr
 	}
+
+	tx.Commit()
+	return nil
 }
 
 func resourceRedshiftUserImport(d *schema.ResourceData, meta interface{}) ([]*schema.ResourceData, error) {

@@ -170,13 +170,13 @@ func resourceRedshiftDatabaseUpdate(d *schema.ResourceData, meta interface{}) er
 
 	err := readRedshiftDatabase(d, redshiftClient)
 
-	if err == nil {
-		tx.Commit()
-		return nil
-	} else {
+	if err != nil {
 		tx.Rollback()
 		return err
 	}
+
+	tx.Commit()
+	return nil
 }
 
 func resourceRedshiftDatabaseDelete(d *schema.ResourceData, meta interface{}) error {

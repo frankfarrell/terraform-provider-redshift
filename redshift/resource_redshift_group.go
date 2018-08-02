@@ -94,13 +94,13 @@ func resourceRedshiftGroupCreate(d *schema.ResourceData, meta interface{}) error
 
 	readErr := readRedshiftGroup(d, tx)
 
-	if readErr == nil {
-		tx.Commit()
-		return nil
-	} else {
+	if readErr != nil {
 		tx.Rollback()
 		return readErr
 	}
+
+	tx.Commit()
+	return nil
 }
 
 func resourceRedshiftGroupRead(d *schema.ResourceData, meta interface{}) error {
@@ -115,13 +115,13 @@ func resourceRedshiftGroupRead(d *schema.ResourceData, meta interface{}) error {
 
 	err := readRedshiftGroup(d, tx)
 
-	if err == nil {
-		tx.Commit()
-		return nil
-	} else {
+	if err != nil {
 		tx.Rollback()
 		return err
 	}
+
+	tx.Commit()
+	return nil
 }
 
 func readRedshiftGroup(d *schema.ResourceData, tx *sql.Tx) error {
@@ -206,13 +206,13 @@ func resourceRedshiftGroupUpdate(d *schema.ResourceData, meta interface{}) error
 
 	err := readRedshiftGroup(d, tx)
 
-	if err == nil {
-		tx.Commit()
-		return nil
-	} else {
+	if err != nil {
 		tx.Rollback()
 		return err
 	}
+
+	tx.Commit()
+	return nil
 }
 
 func resourceRedshiftGroupDelete(d *schema.ResourceData, meta interface{}) error {
