@@ -107,31 +107,31 @@ func resourceRedshiftSchemaGroupPrivilegeCreate(d *schema.ResourceData, meta int
 		return NewError("Must have at least 1 privilige")
 	}
 
-	schema_name, schemaErr := GetSchemanNameForSchemaId(tx, d.Get("schema_id").(int))
+	schemaName, schemaErr := GetSchemanNameForSchemaId(tx, d.Get("schema_id").(int))
 	if schemaErr != nil {
 		log.Fatal(schemaErr)
 		tx.Rollback()
 		return schemaErr
 	}
 
-	group_name, groupErr := GetGroupNameForGroupId(tx, d.Get("group_id").(int))
+	groupName, groupErr := GetGroupNameForGroupId(tx, d.Get("group_id").(int))
 	if groupErr != nil {
 		log.Fatal(groupErr)
 		tx.Rollback()
 		return groupErr
 	}
 
-	var grant_privilege_statement = "GRANT " + strings.Join(grants[:], ",") + " ON ALL TABLES IN SCHEMA " + schema_name + " TO GROUP " + group_name
+	var grantPrivilegeStatement = "GRANT " + strings.Join(grants[:], ",") + " ON ALL TABLES IN SCHEMA " + schemaName + " TO GROUP " + groupName
 
-	if _, err := tx.Exec(grant_privilege_statement); err != nil {
+	if _, err := tx.Exec(grantPrivilegeStatement); err != nil {
 		log.Fatal(err)
 		tx.Rollback()
 		return err
 	}
 
-	var default_privileges_statement = "ALTER DEFAULT PRIVILEGES IN SCHEMA " + schema_name + " GRANT " + strings.Join(grants[:], ",") + " ON TABLES TO GROUP " + group_name
+	var defaultPrivilegesStatement = "ALTER DEFAULT PRIVILEGES IN SCHEMA " + schemaName + " GRANT " + strings.Join(grants[:], ",") + " ON TABLES TO GROUP " + groupName
 
-	if _, err := tx.Exec(default_privileges_statement); err != nil {
+	if _, err := tx.Exec(defaultPrivilegesStatement); err != nil {
 		log.Fatal(err)
 		tx.Rollback()
 		return err
@@ -178,7 +178,7 @@ func readRedshiftSchemaGroupPrivilege(d *schema.ResourceData, tx *sql.Tx) error 
 		referencesPrivilege bool
 	)
 
-	var has_schema_privilege_query = `select decode(charindex('r',split_part(split_part(array_to_string(defaclacl, '|'),pu.groname,2 ) ,'/',1)),0,0,1)  as select,
+	var hasSchemaPrivilegeQuery = `select decode(charindex('r',split_part(split_part(array_to_string(defaclacl, '|'),pu.groname,2 ) ,'/',1)),0,0,1)  as select,
 			decode(charindex('w',split_part(split_part(array_to_string(defaclacl, '|'),pu.groname,2 ) ,'/',1)),0,0,1)  as update,
 			decode(charindex('a',split_part(split_part(array_to_string(defaclacl, '|'),pu.groname,2 ) ,'/',1)),0,0,1)  as insert,
 			decode(charindex('d',split_part(split_part(array_to_string(defaclacl, '|'),pu.groname,2 ) ,'/',1)),0,0,1)  as delete,
@@ -189,7 +189,7 @@ func readRedshiftSchemaGroupPrivilege(d *schema.ResourceData, tx *sql.Tx) error 
 			and nsp.oid = $1
 			and pu.grosysid = $2`
 
-	schemaPrivilegesError := tx.QueryRow(has_schema_privilege_query, d.Get("schema_id").(int), d.Get("group_id").(int)).Scan(&selectPrivilege, &updatePrivilege, &insertPrivilege, &deletePrivilege, &referencesPrivilege)
+	schemaPrivilegesError := tx.QueryRow(hasSchemaPrivilegeQuery, d.Get("schema_id").(int), d.Get("group_id").(int)).Scan(&selectPrivilege, &updatePrivilege, &insertPrivilege, &deletePrivilege, &referencesPrivilege)
 
 	if schemaPrivilegesError != nil {
 		tx.Rollback()
@@ -220,14 +220,14 @@ func resourceRedshiftSchemaGroupPrivilegeUpdate(d *schema.ResourceData, meta int
 		return NewError("Must have at least 1 privilige")
 	}
 
-	schema_name, schemaErr := GetSchemanNameForSchemaId(tx, d.Get("schema_id").(int))
+	schemaName, schemaErr := GetSchemanNameForSchemaId(tx, d.Get("schema_id").(int))
 	if schemaErr != nil {
 		log.Fatal(schemaErr)
 		tx.Rollback()
 		return schemaErr
 	}
 
-	group_name, groupErr := GetGroupNameForGroupId(tx, d.Get("group_id").(int))
+	groupName, groupErr := GetGroupNameForGroupId(tx, d.Get("group_id").(int))
 	if groupErr != nil {
 		log.Fatal(groupErr)
 		tx.Rollback()
@@ -235,23 +235,23 @@ func resourceRedshiftSchemaGroupPrivilegeUpdate(d *schema.ResourceData, meta int
 	}
 
 	//Would be much nicer to do this with zip if possible
-	if err := updatePrivilege(tx, d, "select", "SELECT", schema_name, group_name); err != nil {
+	if err := updatePrivilege(tx, d, "select", "SELECT", schemaName, groupName); err != nil {
 		tx.Rollback()
 		return err
 	}
-	if err := updatePrivilege(tx, d, "insert", "INSERT", schema_name, group_name); err != nil {
+	if err := updatePrivilege(tx, d, "insert", "INSERT", schemaName, groupName); err != nil {
 		tx.Rollback()
 		return err
 	}
-	if err := updatePrivilege(tx, d, "update", "UPDATE", schema_name, group_name); err != nil {
+	if err := updatePrivilege(tx, d, "update", "UPDATE", schemaName, groupName); err != nil {
 		tx.Rollback()
 		return err
 	}
-	if err := updatePrivilege(tx, d, "delete", "DELETE", schema_name, group_name); err != nil {
+	if err := updatePrivilege(tx, d, "delete", "DELETE", schemaName, groupName); err != nil {
 		tx.Rollback()
 		return err
 	}
-	if err := updatePrivilege(tx, d, "references", "REFERENCES", schema_name, group_name); err != nil {
+	if err := updatePrivilege(tx, d, "references", "REFERENCES", schemaName, groupName); err != nil {
 		tx.Rollback()
 		return err
 	}
@@ -269,25 +269,25 @@ func resourceRedshiftSchemaGroupPrivilegeDelete(d *schema.ResourceData, meta int
 		panic(txErr)
 	}
 
-	schema_name, schemaErr := GetSchemanNameForSchemaId(tx, d.Get("schema_id").(int))
+	schemaName, schemaErr := GetSchemanNameForSchemaId(tx, d.Get("schema_id").(int))
 	if schemaErr != nil {
 		log.Fatal(schemaErr)
 		tx.Rollback()
 		return schemaErr
 	}
 
-	group_name, groupErr := GetGroupNameForGroupId(tx, d.Get("group_id").(int))
+	groupName, groupErr := GetGroupNameForGroupId(tx, d.Get("group_id").(int))
 	if groupErr != nil {
 		log.Fatal(groupErr)
 		tx.Rollback()
 		return groupErr
 	}
 
-	if _, err := tx.Exec("REVOKE ALL ON  ALL TABLES IN SCHEMA " + schema_name + " FROM GROUP " + group_name); err != nil {
+	if _, err := tx.Exec("REVOKE ALL ON  ALL TABLES IN SCHEMA " + schemaName + " FROM GROUP " + groupName); err != nil {
 		tx.Rollback()
 		return err
 	}
-	if _, err := tx.Exec("ALTER DEFAULT PRIVILEGES IN SCHEMA " + schema_name + " REVOKE ALL ON TABLES FROM GROUP " + group_name); err != nil {
+	if _, err := tx.Exec("ALTER DEFAULT PRIVILEGES IN SCHEMA " + schemaName + " REVOKE ALL ON TABLES FROM GROUP " + groupName); err != nil {
 		tx.Rollback()
 		return err
 	}

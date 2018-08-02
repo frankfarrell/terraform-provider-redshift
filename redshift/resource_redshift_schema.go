@@ -117,18 +117,18 @@ func resourceRedshiftSchemaRead(d *schema.ResourceData, meta interface{}) error 
 
 func readRedshiftSchema(d *schema.ResourceData, db *sql.DB) error {
 	var (
-		schema_name string
-		owner       int
+		schemaName string
+		owner      int
 	)
 
-	err := db.QueryRow("select nspname, nspowner from pg_namespace where oid = $1", d.Id()).Scan(&schema_name, &owner)
+	err := db.QueryRow("select nspname, nspowner from pg_namespace where oid = $1", d.Id()).Scan(&schemaName, &owner)
 
 	if err != nil {
 		log.Fatal(err)
 		return err
 	}
 
-	d.Set("schema_name", schema_name)
+	d.Set("schema_name", schemaName)
 	d.Set("owner", owner)
 
 	return nil
