@@ -52,7 +52,7 @@ func resourceRedshiftSchemaExists(d *schema.ResourceData, meta interface{}) (b b
 
 	var name string
 
-	var existenceQuery string = "SELECT nspname FROM pg_namespace WHERE oid = $1"
+	var existenceQuery = "SELECT nspname FROM pg_namespace WHERE oid = $1"
 
 	log.Print("Does schema exist query: " + existenceQuery + ", " + d.Id())
 

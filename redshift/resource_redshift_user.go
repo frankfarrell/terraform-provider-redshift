@@ -190,7 +190,7 @@ func readRedshiftUser(d *schema.ResourceData, tx *sql.Tx) error {
 		useconnlimit sql.NullString
 	)
 
-	var readUserQuery string = "select usename, usecreatedb, usesuper, valuntil, useconnlimit " +
+	var readUserQuery = "select usename, usecreatedb, usesuper, valuntil, useconnlimit " +
 		"from pg_user_info where usesysid = $1"
 
 	log.Print("Reading redshift user with query: " + readUserQuery)
@@ -344,7 +344,7 @@ func resourceRedshiftUserDelete(d *schema.ResourceData, meta interface{}) error 
 	// See some discussion her: https://dba.stackexchange.com/questions/143938/drop-user-in-redshift-which-has-privilege-on-some-object
 	//
 	// Derived from https://github.com/awslabs/amazon-redshift-utils/blob/master/src/AdminViews/v_find_dropuser_objs.sql
-	var reassignOwnerGenerator string = `SELECT owner.ddl
+	var reassignOwnerGenerator = `SELECT owner.ddl
 		FROM (
 				-- Functions owned by the user
 				SELECT pgu.usesysid,
@@ -467,7 +467,7 @@ func GetUsersnamesForUsesysid(q Queryer, usersIdsInterface []interface{}) []stri
 	var usernames []string
 
 	//I couldnt figure out how to pass a slice to go sql
-	var selectUserQuery string = fmt.Sprintf("select usename from pg_user_info where usesysid in (%s)", strings.Trim(strings.Join(strings.Fields(fmt.Sprint(usersIds)), ","), "[]"))
+	var selectUserQuery = fmt.Sprintf("select usename from pg_user_info where usesysid in (%s)", strings.Trim(strings.Join(strings.Fields(fmt.Sprint(usersIds)), ","), "[]"))
 
 	log.Print("Select user query: " + selectUserQuery)
 
