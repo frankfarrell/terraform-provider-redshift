@@ -141,13 +141,13 @@ func resourceRedshiftSchemaGroupPrivilegeCreate(d *schema.ResourceData, meta int
 
 	readErr := readRedshiftSchemaGroupPrivilege(d, tx)
 
-	if readErr == nil {
-		tx.Commit()
-		return nil
-	} else {
+	if readErr != nil {
 		tx.Rollback()
 		return readErr
 	}
+
+	tx.Commit()
+	return nil
 }
 
 func resourceRedshiftSchemaGroupPrivilegeRead(d *schema.ResourceData, meta interface{}) error {
@@ -160,13 +160,13 @@ func resourceRedshiftSchemaGroupPrivilegeRead(d *schema.ResourceData, meta inter
 
 	err := readRedshiftSchemaGroupPrivilege(d, tx)
 
-	if err == nil {
-		tx.Commit()
-		return nil
-	} else {
+	if err != nil {
 		tx.Rollback()
 		return err
 	}
+
+	tx.Commit()
+	return nil
 }
 
 func readRedshiftSchemaGroupPrivilege(d *schema.ResourceData, tx *sql.Tx) error {
@@ -304,27 +304,26 @@ func resourceRedshiftSchemaGroupPrivilegeImport(d *schema.ResourceData, meta int
 }
 
 func updatePrivilege(tx *sql.Tx, d *schema.ResourceData, attribute string, privilege string, schemaName string, groupName string) error {
-	if d.HasChange(attribute) {
-		if d.Get(attribute).(bool) {
-			if _, err := tx.Exec("GRANT " + privilege + " ALL TABLES IN SCHEMA " + schemaName + " TO  GROUP " + groupName); err != nil {
-				return err
-			}
-			if _, err := tx.Exec("ALTER DEFAULT PRIVILEGES IN SCHEMA " + schemaName + " GRANT " + privilege + " ON TABLES TO GROUP " + groupName); err != nil {
-				return err
-			}
-			return nil
-		} else {
-			if _, err := tx.Exec("REVOKE " + privilege + " ON  ALL TABLES IN SCHEMA " + schemaName + " FROM GROUP " + groupName); err != nil {
-				return err
-			}
-			if _, err := tx.Exec("ALTER DEFAULT PRIVILEGES IN SCHEMA " + schemaName + " REVOKE " + privilege + " ON TABLES FROM GROUP " + groupName); err != nil {
-				return err
-			}
-			return nil
-		}
-	} else {
+	if !d.HasChange(attribute) {
 		return nil
 	}
+
+	if d.Get(attribute).(bool) {
+		if _, err := tx.Exec("GRANT " + privilege + " ALL TABLES IN SCHEMA " + schemaName + " TO  GROUP " + groupName); err != nil {
+			return err
+		}
+		if _, err := tx.Exec("ALTER DEFAULT PRIVILEGES IN SCHEMA " + schemaName + " GRANT " + privilege + " ON TABLES TO GROUP " + groupName); err != nil {
+			return err
+		}
+	} else {
+		if _, err := tx.Exec("REVOKE " + privilege + " ON  ALL TABLES IN SCHEMA " + schemaName + " FROM GROUP " + groupName); err != nil {
+			return err
+		}
+		if _, err := tx.Exec("ALTER DEFAULT PRIVILEGES IN SCHEMA " + schemaName + " REVOKE " + privilege + " ON TABLES FROM GROUP " + groupName); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func validateGrants(d *schema.ResourceData) ([]string, error) {
@@ -347,10 +346,10 @@ func validateGrants(d *schema.ResourceData) ([]string, error) {
 	}
 
 	if len(grants) == 0 {
-		return nil, NewError("Must have at least 1 privilige")
-	} else {
-		return grants, nil
+		return nil, NewError("Must have at least 1 privilege")
 	}
+
+	return grants, nil
 }
 
 // errorString is a trivial implementation of error.
