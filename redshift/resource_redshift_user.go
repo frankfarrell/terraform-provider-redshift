@@ -302,22 +302,25 @@ func resourceRedshiftUserUpdate(d *schema.ResourceData, meta interface{}) error 
 func resetPassword(tx *sql.Tx, d *schema.ResourceData, username string) error {
 
 	if v, ok := d.GetOk("password_disabled"); ok && v.(bool) {
+
 		var disablePasswordQuery = "alter user " + username + " password disable"
 
 		if _, err := tx.Exec(disablePasswordQuery); err != nil {
 			return err
 		}
 		return nil
-	}
 
-	var resetPasswordQuery = "alter user " + username + " password '" + d.Get("password").(string) + "' "
-	if v, ok := d.GetOk("valid_until"); ok {
-		resetPasswordQuery += " VALID UNTIL '" + v.(string) + "'"
+	} else {
+		var resetPasswordQuery = "alter user " + username + " password '" + d.Get("password").(string) + "' "
+		if v, ok := d.GetOk("valid_until"); ok {
+			resetPasswordQuery += " VALID UNTIL '" + v.(string) + "'"
+
+		}
+		if _, err := tx.Exec(resetPasswordQuery); err != nil {
+			return err
+		}
+		return nil
 	}
-	if _, err := tx.Exec(resetPasswordQuery); err != nil {
-		return err
-	}
-	return nil
 }
 
 func resourceRedshiftUserDelete(d *schema.ResourceData, meta interface{}) error {
