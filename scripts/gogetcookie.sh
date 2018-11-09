@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 touch ~/.gitcookies
 chmod 0600 ~/.gitcookies
