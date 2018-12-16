@@ -27,7 +27,7 @@ func redshiftUser() *schema.Resource {
 			},
 			"password": { //Can we read this back from the db? If not hwo can we tell if its changed? Do we need to use md5hash?
 				Type:     schema.TypeString,
-				Required: true,
+				Optional: true,
 			},
 			"valid_until": {
 				Type:     schema.TypeString,
@@ -92,11 +92,14 @@ func resourceRedshiftUserCreate(d *schema.ResourceData, meta interface{}) error 
 		panic(txErr)
 	}
 
-	var createStatement string = "create user " + d.Get("username").(string) + " with password '" + d.Get("password").(string) + "' "
+	var createStatement string = "create user " + d.Get("username").(string) + " with password "
 
 	if v, ok := d.GetOk("password_disabled"); ok && v.(bool) {
-		createStatement += " DISABLED "
+		createStatement += " DISABLE "
+	} else {
+		createStatement += "'" + d.Get("password").(string) + "' "
 	}
+
 	if v, ok := d.GetOk("valid_until"); ok {
 		//TODO Validate v is in format YYYY-mm-dd
 		createStatement += "VALID UNTIL '" + v.(string) + "'"
