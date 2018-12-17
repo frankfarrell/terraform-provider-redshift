@@ -96,8 +96,10 @@ func resourceRedshiftUserCreate(d *schema.ResourceData, meta interface{}) error 
 
 	if v, ok := d.GetOk("password_disabled"); ok && v.(bool) {
 		createStatement += " DISABLE "
+	} else if v, ok := d.GetOk("password"); ok {
+		createStatement += "'" + v.(string) + "' "
 	} else {
-		createStatement += "'" + d.Get("password").(string) + "' "
+		return fmt.Errorf("Either password_disabled attribute has to be set to true or password attribute has to be provided")
 	}
 
 	if v, ok := d.GetOk("valid_until"); ok {
