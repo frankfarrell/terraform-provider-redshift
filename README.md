@@ -40,7 +40,7 @@ Creating an admin user who is in a group and who owns a new database, with a pas
 resource "redshift_user" "testuser"{
   "username" = "testusernew" # User name are not immutable. 
   # Terraform can't read passwords, so if the user changes their password it will not be picked up. One caveat is that when the user name is changed, the password is reset to this value
-  "password" = "Testpass123" 
+  "password" = "Testpass123" # You can pass an md5 encryted password here by prefixing the hash with md5
   "valid_until" = "2018-10-30" # See below for an example with 'password_disabled'
   "connection_limit" = "4"
   "createdb" = true
