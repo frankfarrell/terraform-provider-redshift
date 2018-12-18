@@ -14,9 +14,9 @@ Note that schemas are the lowest level of granularity here, tables should be cre
 
 # Get it:
 Download for amd64 (for other architectures and OSes you can build from source as descibed below)
-* [Windows](https://github.com/frankfarrell/terraform-provider-redshift/raw/master/dist/windows/amd64/terraform-provider-redshift_v0.0.1_x4.exe)
-* [Linux](https://github.com/frankfarrell/terraform-provider-redshift/raw/master/dist/linux/amd64/terraform-provider-redshift_v0.0.1_x4)
-* [Mac](https://github.com/frankfarrell/terraform-provider-redshift/raw/master/dist/darwin/amd64/terraform-provider-redshift_v0.0.1_x4)
+* [Windows](https://github.com/frankfarrell/terraform-provider-redshift/raw/master/dist/windows/amd64/terraform-provider-redshift_v0.0.2_x4.exe)
+* [Linux](https://github.com/frankfarrell/terraform-provider-redshift/raw/master/dist/linux/amd64/terraform-provider-redshift_v0.0.2_x4)
+* [Mac](https://github.com/frankfarrell/terraform-provider-redshift/raw/master/dist/darwin/amd64/terraform-provider-redshift_v0.0.2_x4)
 
 Add to terraform plugins directory: https://www.terraform.io/docs/configuration/providers.html#third-party-plugins
 
@@ -115,7 +115,7 @@ Creating a user who can only connect using IAM Credentials as described [here](h
 ```
 resource "redshift_user" "testuser"{
   "username" = "testusernew",
-  "password_disabled" = true
+  "password_disabled" = true # No need to specify a pasword is this is true
   "connection_limit" = "1"
 }
 ```
