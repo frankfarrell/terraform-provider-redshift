@@ -535,7 +535,7 @@ const (
 	charLower   = "abcdefghijklmnopqrstuvwxyz"
 	charUpper   = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 	charNumbers = "0123456789"
-	charSymbols = "!@#$%^&*()_+-=[]{}|'"
+	charSymbols = "!@#$%^&*()_+-=[]{}|"
 )
 
 func generatePassword(length int) string {
