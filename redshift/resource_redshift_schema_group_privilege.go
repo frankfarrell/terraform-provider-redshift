@@ -3,9 +3,10 @@ package redshift
 import (
 	"database/sql"
 	"fmt"
-	"github.com/hashicorp/terraform/helper/schema"
 	"log"
 	"strings"
+
+	"github.com/hashicorp/terraform/helper/schema"
 )
 
 //https://docs.aws.amazon.com/redshift/latest/dg/r_GRANT.html
@@ -309,7 +310,7 @@ func updatePrivilege(tx *sql.Tx, d *schema.ResourceData, attribute string, privi
 	}
 
 	if d.Get(attribute).(bool) {
-		if _, err := tx.Exec("GRANT " + privilege + " ALL TABLES IN SCHEMA " + schemaName + " TO  GROUP " + groupName); err != nil {
+		if _, err := tx.Exec("GRANT " + privilege + " ON ALL TABLES IN SCHEMA " + schemaName + " TO  GROUP " + groupName); err != nil {
 			return err
 		}
 		if _, err := tx.Exec("ALTER DEFAULT PRIVILEGES IN SCHEMA " + schemaName + " GRANT " + privilege + " ON TABLES TO GROUP " + groupName); err != nil {
