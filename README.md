@@ -44,7 +44,7 @@ resource "redshift_user" "testuser"{
   "valid_until" = "2018-10-30" # See below for an example with 'password_disabled'
   "connection_limit" = "4"
   "createdb" = true
-  "syslog_access" = "UNRESTICTED"
+  "syslog_access" = "UNRESTRICTED"
   "superuser" = true
 }
 
