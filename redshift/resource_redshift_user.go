@@ -1,10 +1,14 @@
 package redshift
 
 import (
+	"bytes"
+	"crypto/rand"
 	"database/sql"
 	"fmt"
+	"github.com/hashicorp/terraform/helper/encryption"
 	"github.com/hashicorp/terraform/helper/schema"
 	"log"
+	"math/big"
 	"strings"
 	"time"
 )
@@ -26,6 +30,10 @@ func redshiftUser() *schema.Resource {
 				Required: true,
 			},
 			"password": { //Can we read this back from the db? If not hwo can we tell if its changed? Do we need to use md5hash?
+				Type:     schema.TypeString,
+				Optional: true,
+			},
+			"pgp_key": {
 				Type:     schema.TypeString,
 				Optional: true,
 			},
@@ -59,6 +67,10 @@ func redshiftUser() *schema.Resource {
 				Default:  false,
 			},
 			"usesysid": {
+				Type:     schema.TypeString,
+				Computed: true,
+			},
+			"encrypted_password": {
 				Type:     schema.TypeString,
 				Computed: true,
 			},
@@ -98,8 +110,20 @@ func resourceRedshiftUserCreate(d *schema.ResourceData, meta interface{}) error 
 		createStatement += " DISABLE "
 	} else if v, ok := d.GetOk("password"); ok {
 		createStatement += "'" + v.(string) + "' "
+	} else if v, ok := d.GetOk("pgp_key"); ok {
+		encryptionKey, err := encryption.RetrieveGPGKey(v.(string))
+		if err != nil {
+			return err
+		}
+		password := generatePassword(12)
+		_, encrypted, err := encryption.EncryptValue(encryptionKey, password, "Password")
+		if err != nil {
+			return err
+		}
+		d.Set("encrypted_password", encrypted)
+		createStatement += "'" + password + "' "
 	} else {
-		return fmt.Errorf("Either password_disabled attribute has to be set to true or password attribute has to be provided")
+		return fmt.Errorf("If password_disabled attribute is false then either password or pgp_key attribute has to be provided")
 	}
 
 	if v, ok := d.GetOk("valid_until"); ok {
@@ -502,4 +526,57 @@ func GetUsersnamesForUsesysid(q Queryer, usersIdsInterface []interface{}) []stri
 	}
 
 	return usernames
+}
+
+// Password generation helpers based on:
+// https://github.com/terraform-providers/terraform-provider-aws/blob/master/aws/resource_aws_iam_user_login_profile.go
+
+const (
+	charLower   = "abcdefghijklmnopqrstuvwxyz"
+	charUpper   = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	charNumbers = "0123456789"
+	charSymbols = "!@#$%^&*()_+-=[]{}|"
+)
+
+func generatePassword(length int) string {
+	const charset = charLower + charUpper + charNumbers + charSymbols
+
+	result := make([]byte, length)
+	charsetSize := big.NewInt(int64(len(charset)))
+
+	// rather than trying to artificially add specific characters from each
+	// class to the password to match the policy, we generate passwords
+	// randomly and reject those that don't match.
+	//
+	// Even in the worst case, this tends to take less than 10 tries to find a
+	// matching password. Any sufficiently long password is likely to succeed
+	// on the first try
+	for n := 0; n < 100000; n++ {
+		for i := range result {
+			r, err := rand.Int(rand.Reader, charsetSize)
+			if err != nil {
+				panic(err)
+			}
+			if !r.IsInt64() {
+				panic("rand.Int() not representable as an Int64")
+			}
+
+			result[i] = charset[r.Int64()]
+		}
+
+		if !checkPwdPolicy(result) {
+			continue
+		}
+
+		return string(result)
+	}
+
+	panic("failed to generate acceptable password")
+}
+
+func checkPwdPolicy(pass []byte) bool {
+	return (bytes.ContainsAny(pass, charLower) &&
+		bytes.ContainsAny(pass, charNumbers) &&
+		bytes.ContainsAny(pass, charSymbols) &&
+		bytes.ContainsAny(pass, charUpper))
 }
