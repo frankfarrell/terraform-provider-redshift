@@ -62,8 +62,16 @@ func redshiftSchemaGroupPrivilege() *schema.Resource {
 				Optional: true,
 				Default:  false,
 			},
-			//TODO Execute, Languages, CREATE , USAGE
-			//TODO Do we need to give usage privileges in the first place to the group?
+			"create": {
+				Type:     schema.TypeBool,
+				Optional: true,
+				Default:  false,
+			},
+			"usage": {
+				Type:     schema.TypeBool,
+				Optional: true,
+				Default:  false,
+			},
 		},
 	}
 }
@@ -138,6 +146,16 @@ func resourceRedshiftSchemaGroupPrivilegeCreate(d *schema.ResourceData, meta int
 		return err
 	}
 
+	schemaGrants := validateSchemaGrants(d)
+	if len(schemaGrants) > 0 {
+		var grantPrivilegeSchemaStatement = "GRANT " + strings.Join(schemaGrants[:], ",") + " ON SCHEMA " + schemaName + " TO GROUP " + groupName
+		if _, err := tx.Exec(grantPrivilegeSchemaStatement); err != nil {
+			log.Fatal(err)
+			tx.Rollback()
+			return err
+		}
+	}
+
 	d.SetId(fmt.Sprint(d.Get("schema_id").(int)) + "_" + fmt.Sprint(d.Get("group_id").(int)))
 
 	readErr := readRedshiftSchemaGroupPrivilege(d, tx)
@@ -172,6 +190,8 @@ func resourceRedshiftSchemaGroupPrivilegeRead(d *schema.ResourceData, meta inter
 
 func readRedshiftSchemaGroupPrivilege(d *schema.ResourceData, tx *sql.Tx) error {
 	var (
+		usagePrivilege		bool
+		createPrivilege		bool
 		selectPrivilege     bool
 		updatePrivilege     bool
 		insertPrivilege     bool
@@ -179,7 +199,17 @@ func readRedshiftSchemaGroupPrivilege(d *schema.ResourceData, tx *sql.Tx) error 
 		referencesPrivilege bool
 	)
 
-	var hasSchemaPrivilegeQuery = `select decode(charindex('r',split_part(split_part(array_to_string(defaclacl, '|'),pu.groname,2 ) ,'/',1)),0,0,1)  as select,
+	var hasSchemaPrivilegeQuery = `
+			select 
+			case 
+				when charindex('U',split_part(split_part(array_to_string(nspacl, '|'),pu.groname,2 ) ,'/',1)) > 0 then 1 
+				else 0 
+			end as usage,
+			case 
+				when charindex('C',split_part(split_part(array_to_string(nspacl, '|'),pu.groname,2 ) ,'/',1)) > 0 then 1 
+				else 0 
+			end as create,
+			decode(charindex('r',split_part(split_part(array_to_string(defaclacl, '|'),pu.groname,2 ) ,'/',1)),0,0,1)  as select,
 			decode(charindex('w',split_part(split_part(array_to_string(defaclacl, '|'),pu.groname,2 ) ,'/',1)),0,0,1)  as update,
 			decode(charindex('a',split_part(split_part(array_to_string(defaclacl, '|'),pu.groname,2 ) ,'/',1)),0,0,1)  as insert,
 			decode(charindex('d',split_part(split_part(array_to_string(defaclacl, '|'),pu.groname,2 ) ,'/',1)),0,0,1)  as delete,
@@ -190,13 +220,15 @@ func readRedshiftSchemaGroupPrivilege(d *schema.ResourceData, tx *sql.Tx) error 
 			and nsp.oid = $1
 			and pu.grosysid = $2`
 
-	schemaPrivilegesError := tx.QueryRow(hasSchemaPrivilegeQuery, d.Get("schema_id").(int), d.Get("group_id").(int)).Scan(&selectPrivilege, &updatePrivilege, &insertPrivilege, &deletePrivilege, &referencesPrivilege)
+	schemaPrivilegesError := tx.QueryRow(hasSchemaPrivilegeQuery, d.Get("schema_id").(int), d.Get("group_id").(int)).Scan(&usagePrivilege, &createPrivilege, &selectPrivilege, &updatePrivilege, &insertPrivilege, &deletePrivilege, &referencesPrivilege)
 
 	if schemaPrivilegesError != nil {
 		tx.Rollback()
 		return schemaPrivilegesError
 	}
 
+	d.Set("usage", usagePrivilege)
+	d.Set("create", createPrivilege)
 	d.Set("select", selectPrivilege)
 	d.Set("insert", insertPrivilege)
 	d.Set("update", updatePrivilege)
@@ -256,6 +288,14 @@ func resourceRedshiftSchemaGroupPrivilegeUpdate(d *schema.ResourceData, meta int
 		tx.Rollback()
 		return err
 	}
+	if err := updateSchemaPrivilege(tx, d, "usage", "USAGE", schemaName, groupName); err != nil {
+		tx.Rollback()
+		return err
+	}
+	if err := updateSchemaPrivilege(tx, d, "create", "CREATE", schemaName, groupName); err != nil {
+		tx.Rollback()
+		return err
+	}
 
 	tx.Commit()
 	return nil
@@ -292,6 +332,10 @@ func resourceRedshiftSchemaGroupPrivilegeDelete(d *schema.ResourceData, meta int
 		tx.Rollback()
 		return err
 	}
+	if _, err := tx.Exec("REVOKE ALL ON SCHEMA " + schemaName + " FROM GROUP " + groupName); err != nil {
+		tx.Rollback()
+		return err
+	}
 
 	tx.Commit()
 	return nil
@@ -317,10 +361,27 @@ func updatePrivilege(tx *sql.Tx, d *schema.ResourceData, attribute string, privi
 			return err
 		}
 	} else {
-		if _, err := tx.Exec("REVOKE " + privilege + " ON  ALL TABLES IN SCHEMA " + schemaName + " FROM GROUP " + groupName); err != nil {
+		if _, err := tx.Exec("REVOKE " + privilege + " ON ALL TABLES IN SCHEMA " + schemaName + " FROM GROUP " + groupName); err != nil {
 			return err
 		}
 		if _, err := tx.Exec("ALTER DEFAULT PRIVILEGES IN SCHEMA " + schemaName + " REVOKE " + privilege + " ON TABLES FROM GROUP " + groupName); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func updateSchemaPrivilege(tx *sql.Tx, d *schema.ResourceData, attribute string, privilege string, schemaName string, groupName string) error {
+	if !d.HasChange(attribute) {
+		return nil
+	}
+
+	if d.Get(attribute).(bool) {
+		if _, err := tx.Exec("GRANT " + privilege + " ON SCHEMA " + schemaName + " TO  GROUP " + groupName); err != nil {
+			return err
+		}
+	} else {
+		if _, err := tx.Exec("REVOKE " + privilege + " ON SCHEMA " + schemaName + " FROM GROUP " + groupName); err != nil {
 			return err
 		}
 	}
@@ -351,6 +412,19 @@ func validateGrants(d *schema.ResourceData) ([]string, error) {
 	}
 
 	return grants, nil
+}
+
+func validateSchemaGrants(d *schema.ResourceData) []string {
+	var grants []string
+
+	if v, ok := d.GetOk("create"); ok && v.(bool) {
+		grants = append(grants, "CREATE")
+	}
+	if v, ok := d.GetOk("usage"); ok && v.(bool) {
+		grants = append(grants, "USAGE")
+	}
+
+	return grants
 }
 
 // errorString is a trivial implementation of error.
