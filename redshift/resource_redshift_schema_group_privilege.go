@@ -81,14 +81,21 @@ func resourceRedshiftSchemaGroupPrivilegeExists(d *schema.ResourceData, meta int
 	// and lowers the burden of Read to be able to assume the resource exists.
 	client := meta.(*Client).db
 
-	var aclId int
+	var privilegeId string
 
-	err := client.QueryRow(`select acl.oid as aclid
+	err := client.QueryRow(`select distinct id from (
+		select nsp.oid || '_' || pu.grosysid as id
 		from pg_group pu, pg_default_acl acl, pg_namespace nsp
 		where acl.defaclnamespace = nsp.oid and
-		array_to_string(acl.defaclacl, '|') LIKE '%' || pu.groname || '=%'
-		and nsp.oid || '_' || pu.grosysid = $1`,
-		d.Id()).Scan(&aclId)
+		array_to_string(acl.defaclacl, '|') LIKE '%' || 'group ' || pu.groname || '=%'
+		and nsp.oid || '_' || pu.grosysid = $1
+		union
+		select nsp.oid || '_' || pu.grosysid as id
+		from  pg_group pu, pg_namespace nsp
+		where array_to_string(nsp.nspacl, '|') LIKE '%' || 'group ' || pu.groname || '=%'
+			and nsp.oid || '_' || pu.grosysid = $1
+		)`,
+		d.Id()).Scan(&privilegeId)
 
 	switch {
 	case err == sql.ErrNoRows:
@@ -109,11 +116,12 @@ func resourceRedshiftSchemaGroupPrivilegeCreate(d *schema.ResourceData, meta int
 		panic(txErr)
 	}
 
-	grants, err := validateGrants(d)
+	grants := validateGrants(d)
+	schemaGrants := validateSchemaGrants(d)
 
-	if err != nil {
+	if len(grants) == 0 && len(schemaGrants) == 0  {
 		tx.Rollback()
-		return NewError("Must have at least 1 privilige")
+		return NewError("Must have at least 1 privilege")
 	}
 
 	schemaName, schemaErr := GetSchemanNameForSchemaId(tx, d.Get("schema_id").(int))
@@ -130,23 +138,24 @@ func resourceRedshiftSchemaGroupPrivilegeCreate(d *schema.ResourceData, meta int
 		return groupErr
 	}
 
-	var grantPrivilegeStatement = "GRANT " + strings.Join(grants[:], ",") + " ON ALL TABLES IN SCHEMA " + schemaName + " TO GROUP " + groupName
+	if len(grants) > 0 {
+		var grantPrivilegeStatement = "GRANT " + strings.Join(grants[:], ",") + " ON ALL TABLES IN SCHEMA " + schemaName + " TO GROUP " + groupName
 
-	if _, err := tx.Exec(grantPrivilegeStatement); err != nil {
-		log.Fatal(err)
-		tx.Rollback()
-		return err
+		if _, err := tx.Exec(grantPrivilegeStatement); err != nil {
+			log.Fatal(err)
+			tx.Rollback()
+			return err
+		}
+
+		var defaultPrivilegesStatement = "ALTER DEFAULT PRIVILEGES IN SCHEMA " + schemaName + " GRANT " + strings.Join(grants[:], ",") + " ON TABLES TO GROUP " + groupName
+
+		if _, err := tx.Exec(defaultPrivilegesStatement); err != nil {
+			log.Fatal(err)
+			tx.Rollback()
+			return err
+		}
 	}
 
-	var defaultPrivilegesStatement = "ALTER DEFAULT PRIVILEGES IN SCHEMA " + schemaName + " GRANT " + strings.Join(grants[:], ",") + " ON TABLES TO GROUP " + groupName
-
-	if _, err := tx.Exec(defaultPrivilegesStatement); err != nil {
-		log.Fatal(err)
-		tx.Rollback()
-		return err
-	}
-
-	schemaGrants := validateSchemaGrants(d)
 	if len(schemaGrants) > 0 {
 		var grantPrivilegeSchemaStatement = "GRANT " + strings.Join(schemaGrants[:], ",") + " ON SCHEMA " + schemaName + " TO GROUP " + groupName
 		if _, err := tx.Exec(grantPrivilegeSchemaStatement); err != nil {
@@ -199,30 +208,44 @@ func readRedshiftSchemaGroupPrivilege(d *schema.ResourceData, tx *sql.Tx) error 
 		referencesPrivilege bool
 	)
 
-	var hasSchemaPrivilegeQuery = `
-			select 
-			case 
-				when charindex('U',split_part(split_part(array_to_string(nspacl, '|'),pu.groname,2 ) ,'/',1)) > 0 then 1 
-				else 0 
-			end as usage,
-			case 
-				when charindex('C',split_part(split_part(array_to_string(nspacl, '|'),pu.groname,2 ) ,'/',1)) > 0 then 1 
-				else 0 
-			end as create,
-			decode(charindex('r',split_part(split_part(array_to_string(defaclacl, '|'),pu.groname,2 ) ,'/',1)),0,0,1)  as select,
-			decode(charindex('w',split_part(split_part(array_to_string(defaclacl, '|'),pu.groname,2 ) ,'/',1)),0,0,1)  as update,
-			decode(charindex('a',split_part(split_part(array_to_string(defaclacl, '|'),pu.groname,2 ) ,'/',1)),0,0,1)  as insert,
-			decode(charindex('d',split_part(split_part(array_to_string(defaclacl, '|'),pu.groname,2 ) ,'/',1)),0,0,1)  as delete,
-			decode(charindex('x',split_part(split_part(array_to_string(defaclacl, '|'),pu.groname,2 ) ,'/',1)),0,0,1)  as references
+	var hasPrivilegeQuery = `
+			select
+			decode(charindex('r',split_part(split_part(array_to_string(defaclacl, '|'),'group ' || pu.groname,2 ) ,'/',1)),0,0,1)  as select,
+			decode(charindex('w',split_part(split_part(array_to_string(defaclacl, '|'),'group ' || pu.groname,2 ) ,'/',1)),0,0,1)  as update,
+			decode(charindex('a',split_part(split_part(array_to_string(defaclacl, '|'),'group ' || pu.groname,2 ) ,'/',1)),0,0,1)  as insert,
+			decode(charindex('d',split_part(split_part(array_to_string(defaclacl, '|'),'group ' || pu.groname,2 ) ,'/',1)),0,0,1)  as delete,
+			decode(charindex('x',split_part(split_part(array_to_string(defaclacl, '|'),'group ' || pu.groname,2 ) ,'/',1)),0,0,1)  as references
 			from pg_group pu, pg_default_acl acl, pg_namespace nsp
 			where acl.defaclnamespace = nsp.oid and
-			array_to_string(acl.defaclacl, '|') LIKE '%' || pu.groname || '=%'
+			array_to_string(acl.defaclacl, '|') LIKE '%' || 'group ' || pu.groname || '=%'
 			and nsp.oid = $1
 			and pu.grosysid = $2`
 
-	schemaPrivilegesError := tx.QueryRow(hasSchemaPrivilegeQuery, d.Get("schema_id").(int), d.Get("group_id").(int)).Scan(&usagePrivilege, &createPrivilege, &selectPrivilege, &updatePrivilege, &insertPrivilege, &deletePrivilege, &referencesPrivilege)
+	privilegesError := tx.QueryRow(hasPrivilegeQuery, d.Get("schema_id").(int), d.Get("group_id").(int)).Scan(&selectPrivilege, &updatePrivilege, &insertPrivilege, &deletePrivilege, &referencesPrivilege)
 
-	if schemaPrivilegesError != nil {
+	if privilegesError != nil && privilegesError != sql.ErrNoRows {
+		tx.Rollback()
+		return privilegesError
+	}
+
+	var hasSchemaPrivilegeQuery = `
+			select 
+			case 
+				when charindex('U',split_part(split_part(array_to_string(nspacl, '|'), 'group ' || pu.groname,2 ) ,'/',1)) > 0 then 1 
+				else 0 
+			end as usage,
+			case 
+				when charindex('C',split_part(split_part(array_to_string(nspacl, '|'),'group ' || pu.groname,2 ) ,'/',1)) > 0 then 1 
+				else 0 
+			end as create
+			from pg_group pu, pg_namespace nsp
+			where array_to_string(nsp.nspacl, '|') LIKE '%' || 'group ' || pu.groname || '=%'
+			and nsp.oid = $1
+			and pu.grosysid = $2`
+
+	schemaPrivilegesError := tx.QueryRow(hasSchemaPrivilegeQuery, d.Get("schema_id").(int), d.Get("group_id").(int)).Scan(&usagePrivilege, &createPrivilege)
+
+	if schemaPrivilegesError != nil && schemaPrivilegesError != sql.ErrNoRows {
 		tx.Rollback()
 		return schemaPrivilegesError
 	}
@@ -246,11 +269,12 @@ func resourceRedshiftSchemaGroupPrivilegeUpdate(d *schema.ResourceData, meta int
 		panic(txErr)
 	}
 
-	_, err := validateGrants(d)
+	grants := validateGrants(d)
+	schemaGrants := validateSchemaGrants(d)
 
-	if err != nil {
+	if len(grants) == 0 && len(schemaGrants) == 0  {
 		tx.Rollback()
-		return NewError("Must have at least 1 privilige")
+		return NewError("Must have at least 1 privilege")
 	}
 
 	schemaName, schemaErr := GetSchemanNameForSchemaId(tx, d.Get("schema_id").(int))
@@ -388,7 +412,7 @@ func updateSchemaPrivilege(tx *sql.Tx, d *schema.ResourceData, attribute string,
 	return nil
 }
 
-func validateGrants(d *schema.ResourceData) ([]string, error) {
+func validateGrants(d *schema.ResourceData) []string {
 	var grants []string
 
 	if v, ok := d.GetOk("select"); ok && v.(bool) {
@@ -407,11 +431,7 @@ func validateGrants(d *schema.ResourceData) ([]string, error) {
 		grants = append(grants, "REFERENCES")
 	}
 
-	if len(grants) == 0 {
-		return nil, NewError("Must have at least 1 privilege")
-	}
-
-	return grants, nil
+	return grants
 }
 
 func validateSchemaGrants(d *schema.ResourceData) []string {
