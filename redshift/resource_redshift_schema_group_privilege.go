@@ -124,7 +124,7 @@ func resourceRedshiftSchemaGroupPrivilegeCreate(d *schema.ResourceData, meta int
 		return NewError("Must have at least 1 privilege")
 	}
 
-	schemaName, schemaErr := GetSchemanNameForSchemaId(tx, d.Get("schema_id").(int))
+	schemaName, schemaOwner, schemaErr := GetSchemaInfoForSchemaId(tx, d.Get("schema_id").(int))
 	if schemaErr != nil {
 		log.Fatal(schemaErr)
 		tx.Rollback()
@@ -147,12 +147,13 @@ func resourceRedshiftSchemaGroupPrivilegeCreate(d *schema.ResourceData, meta int
 			return err
 		}
 
-		var defaultPrivilegesStatement = "ALTER DEFAULT PRIVILEGES IN SCHEMA " + schemaName + " GRANT " + strings.Join(grants[:], ",") + " ON TABLES TO GROUP " + groupName
-
-		if _, err := tx.Exec(defaultPrivilegesStatement); err != nil {
-			log.Fatal(err)
-			tx.Rollback()
-			return err
+		if !isSystemSchema(schemaOwner) {
+			var defaultPrivilegesStatement = "ALTER DEFAULT PRIVILEGES IN SCHEMA " + schemaName + " GRANT " + strings.Join(grants[:], ",") + " ON TABLES TO GROUP " + groupName
+			if _, err := tx.Exec(defaultPrivilegesStatement); err != nil {
+				log.Fatal(err)
+				tx.Rollback()
+				return err
+			}
 		}
 	}
 
@@ -277,7 +278,7 @@ func resourceRedshiftSchemaGroupPrivilegeUpdate(d *schema.ResourceData, meta int
 		return NewError("Must have at least 1 privilege")
 	}
 
-	schemaName, schemaErr := GetSchemanNameForSchemaId(tx, d.Get("schema_id").(int))
+	schemaName, schemaOwner, schemaErr := GetSchemaInfoForSchemaId(tx, d.Get("schema_id").(int))
 	if schemaErr != nil {
 		log.Fatal(schemaErr)
 		tx.Rollback()
@@ -292,23 +293,23 @@ func resourceRedshiftSchemaGroupPrivilegeUpdate(d *schema.ResourceData, meta int
 	}
 
 	//Would be much nicer to do this with zip if possible
-	if err := updatePrivilege(tx, d, "select", "SELECT", schemaName, groupName); err != nil {
+	if err := updatePrivilege(tx, d, "select", "SELECT", schemaName, schemaOwner, groupName); err != nil {
 		tx.Rollback()
 		return err
 	}
-	if err := updatePrivilege(tx, d, "insert", "INSERT", schemaName, groupName); err != nil {
+	if err := updatePrivilege(tx, d, "insert", "INSERT", schemaName, schemaOwner, groupName); err != nil {
 		tx.Rollback()
 		return err
 	}
-	if err := updatePrivilege(tx, d, "update", "UPDATE", schemaName, groupName); err != nil {
+	if err := updatePrivilege(tx, d, "update", "UPDATE", schemaName, schemaOwner, groupName); err != nil {
 		tx.Rollback()
 		return err
 	}
-	if err := updatePrivilege(tx, d, "delete", "DELETE", schemaName, groupName); err != nil {
+	if err := updatePrivilege(tx, d, "delete", "DELETE", schemaName, schemaOwner, groupName); err != nil {
 		tx.Rollback()
 		return err
 	}
-	if err := updatePrivilege(tx, d, "references", "REFERENCES", schemaName, groupName); err != nil {
+	if err := updatePrivilege(tx, d, "references", "REFERENCES", schemaName, schemaOwner, groupName); err != nil {
 		tx.Rollback()
 		return err
 	}
@@ -334,7 +335,7 @@ func resourceRedshiftSchemaGroupPrivilegeDelete(d *schema.ResourceData, meta int
 		panic(txErr)
 	}
 
-	schemaName, schemaErr := GetSchemanNameForSchemaId(tx, d.Get("schema_id").(int))
+	schemaName, schemaOwner, schemaErr := GetSchemaInfoForSchemaId(tx, d.Get("schema_id").(int))
 	if schemaErr != nil {
 		log.Fatal(schemaErr)
 		tx.Rollback()
@@ -352,10 +353,14 @@ func resourceRedshiftSchemaGroupPrivilegeDelete(d *schema.ResourceData, meta int
 		tx.Rollback()
 		return err
 	}
-	if _, err := tx.Exec("ALTER DEFAULT PRIVILEGES IN SCHEMA " + schemaName + " REVOKE ALL ON TABLES FROM GROUP " + groupName); err != nil {
-		tx.Rollback()
-		return err
+
+	if !isSystemSchema(schemaOwner) {
+		if _, err := tx.Exec("ALTER DEFAULT PRIVILEGES IN SCHEMA " + schemaName + " REVOKE ALL ON TABLES FROM GROUP " + groupName); err != nil {
+			tx.Rollback()
+			return err
+		}
 	}
+
 	if _, err := tx.Exec("REVOKE ALL ON SCHEMA " + schemaName + " FROM GROUP " + groupName); err != nil {
 		tx.Rollback()
 		return err
@@ -372,7 +377,7 @@ func resourceRedshiftSchemaGroupPrivilegeImport(d *schema.ResourceData, meta int
 	return []*schema.ResourceData{d}, nil
 }
 
-func updatePrivilege(tx *sql.Tx, d *schema.ResourceData, attribute string, privilege string, schemaName string, groupName string) error {
+func updatePrivilege(tx *sql.Tx, d *schema.ResourceData, attribute string, privilege string, schemaName string, schemaOwner int, groupName string) error {
 	if !d.HasChange(attribute) {
 		return nil
 	}
@@ -381,18 +386,26 @@ func updatePrivilege(tx *sql.Tx, d *schema.ResourceData, attribute string, privi
 		if _, err := tx.Exec("GRANT " + privilege + " ON ALL TABLES IN SCHEMA " + schemaName + " TO  GROUP " + groupName); err != nil {
 			return err
 		}
-		if _, err := tx.Exec("ALTER DEFAULT PRIVILEGES IN SCHEMA " + schemaName + " GRANT " + privilege + " ON TABLES TO GROUP " + groupName); err != nil {
-			return err
+		if !isSystemSchema(schemaOwner) {
+			if _, err := tx.Exec("ALTER DEFAULT PRIVILEGES IN SCHEMA " + schemaName + " GRANT " + privilege + " ON TABLES TO GROUP " + groupName); err != nil {
+				return err
+			}
 		}
 	} else {
 		if _, err := tx.Exec("REVOKE " + privilege + " ON ALL TABLES IN SCHEMA " + schemaName + " FROM GROUP " + groupName); err != nil {
 			return err
 		}
-		if _, err := tx.Exec("ALTER DEFAULT PRIVILEGES IN SCHEMA " + schemaName + " REVOKE " + privilege + " ON TABLES FROM GROUP " + groupName); err != nil {
-			return err
+		if !isSystemSchema(schemaOwner) {
+			if _, err := tx.Exec("ALTER DEFAULT PRIVILEGES IN SCHEMA " + schemaName + " REVOKE " + privilege + " ON TABLES FROM GROUP " + groupName); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
+}
+
+func isSystemSchema(schemaOwner int) bool {
+	return schemaOwner == 1
 }
 
 func updateSchemaPrivilege(tx *sql.Tx, d *schema.ResourceData, attribute string, privilege string, schemaName string, groupName string) error {
