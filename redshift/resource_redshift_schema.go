@@ -199,17 +199,18 @@ func resourceRedshiftSchemaImport(d *schema.ResourceData, meta interface{}) ([]*
 	return []*schema.ResourceData{d}, nil
 }
 
-func GetSchemanNameForSchemaId(q Queryer, schemaId int) (string, error) {
+func GetSchemaInfoForSchemaId(q Queryer, schemaId int) (string, int, error) {
 
 	var name string
+	var owner int
 
-	err := q.QueryRow("SELECT nspname FROM pg_namespace WHERE oid = $1", schemaId).Scan(&name)
+	err := q.QueryRow("SELECT nspname, nspowner FROM pg_namespace WHERE oid = $1", schemaId).Scan(&name, &owner)
 	switch {
 	case err == sql.ErrNoRows:
 		//Is this a good idea?
-		return "", err
+		return "", -1, err
 	case err != nil:
-		return "", err
+		return "", -1, err
 	}
-	return name, nil
+	return name, owner, nil
 }
