@@ -1,7 +1,7 @@
 package main
 
 import (
-	"./redshift"
+	"github.com/frankfarrell/terraform-provider-redshift/redshift"
 	"github.com/hashicorp/terraform/plugin"
 	"github.com/hashicorp/terraform/terraform"
 )
