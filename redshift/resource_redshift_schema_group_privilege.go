@@ -126,7 +126,7 @@ func resourceRedshiftSchemaGroupPrivilegeCreate(d *schema.ResourceData, meta int
 
 	schemaName, schemaOwner, schemaErr := GetSchemaInfoForSchemaId(tx, d.Get("schema_id").(int))
 	if schemaErr != nil {
-		log.Fatal(schemaErr)
+		log.Print(schemaErr)
 		tx.Rollback()
 		return schemaErr
 	}
@@ -138,7 +138,7 @@ func resourceRedshiftSchemaGroupPrivilegeCreate(d *schema.ResourceData, meta int
 
 	groupName, groupErr := GetGroupNameForGroupId(tx, d.Get("group_id").(int))
 	if groupErr != nil {
-		log.Fatal(groupErr)
+		log.Print(groupErr)
 		tx.Rollback()
 		return groupErr
 	}
@@ -147,14 +147,14 @@ func resourceRedshiftSchemaGroupPrivilegeCreate(d *schema.ResourceData, meta int
 		var grantPrivilegeStatement = "GRANT " + strings.Join(grants[:], ",") + " ON ALL TABLES IN SCHEMA " + schemaName + " TO GROUP " + groupName
 
 		if _, err := tx.Exec(grantPrivilegeStatement); err != nil {
-			log.Fatal(err)
+			log.Print(err)
 			tx.Rollback()
 			return err
 		}
 
 		var defaultPrivilegesStatement = "ALTER DEFAULT PRIVILEGES IN SCHEMA " + schemaName + " GRANT " + strings.Join(grants[:], ",") + " ON TABLES TO GROUP " + groupName
 		if _, err := tx.Exec(defaultPrivilegesStatement); err != nil {
-			log.Fatal(err)
+			log.Print(err)
 			tx.Rollback()
 			return err
 		}
@@ -163,7 +163,7 @@ func resourceRedshiftSchemaGroupPrivilegeCreate(d *schema.ResourceData, meta int
 	if len(schemaGrants) > 0 {
 		var grantPrivilegeSchemaStatement = "GRANT " + strings.Join(schemaGrants[:], ",") + " ON SCHEMA " + schemaName + " TO GROUP " + groupName
 		if _, err := tx.Exec(grantPrivilegeSchemaStatement); err != nil {
-			log.Fatal(err)
+			log.Print(err)
 			tx.Rollback()
 			return err
 		}
@@ -283,14 +283,14 @@ func resourceRedshiftSchemaGroupPrivilegeUpdate(d *schema.ResourceData, meta int
 
 	schemaName, _, schemaErr := GetSchemaInfoForSchemaId(tx, d.Get("schema_id").(int))
 	if schemaErr != nil {
-		log.Fatal(schemaErr)
+		log.Print(schemaErr)
 		tx.Rollback()
 		return schemaErr
 	}
 
 	groupName, groupErr := GetGroupNameForGroupId(tx, d.Get("group_id").(int))
 	if groupErr != nil {
-		log.Fatal(groupErr)
+		log.Print(groupErr)
 		tx.Rollback()
 		return groupErr
 	}
@@ -340,14 +340,14 @@ func resourceRedshiftSchemaGroupPrivilegeDelete(d *schema.ResourceData, meta int
 
 	schemaName, _, schemaErr := GetSchemaInfoForSchemaId(tx, d.Get("schema_id").(int))
 	if schemaErr != nil {
-		log.Fatal(schemaErr)
+		log.Print(schemaErr)
 		tx.Rollback()
 		return schemaErr
 	}
 
 	groupName, groupErr := GetGroupNameForGroupId(tx, d.Get("group_id").(int))
 	if groupErr != nil {
-		log.Fatal(groupErr)
+		log.Print(groupErr)
 		tx.Rollback()
 		return groupErr
 	}
