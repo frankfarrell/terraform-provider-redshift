@@ -81,7 +81,7 @@ func resourceRedshiftSchemaCreate(d *schema.ResourceData, meta interface{}) erro
 	log.Print("Create Schema statement: " + createStatement)
 
 	if _, err := redshiftClient.Exec(createStatement); err != nil {
-		log.Fatal(err)
+		log.Print(err)
 		return err
 	}
 
@@ -93,7 +93,7 @@ func resourceRedshiftSchemaCreate(d *schema.ResourceData, meta interface{}) erro
 	err := redshiftClient.QueryRow("SELECT oid FROM pg_namespace WHERE nspname = $1", d.Get("schema_name").(string)).Scan(&oid)
 
 	if err != nil {
-		log.Fatal(err)
+		log.Print(err)
 		return err
 	}
 
@@ -124,7 +124,7 @@ func readRedshiftSchema(d *schema.ResourceData, db *sql.DB) error {
 	err := db.QueryRow("select nspname, nspowner from pg_namespace where oid = $1", d.Id()).Scan(&schemaName, &owner)
 
 	if err != nil {
-		log.Fatal(err)
+		log.Print(err)
 		return err
 	}
 
@@ -185,7 +185,7 @@ func resourceRedshiftSchemaDelete(d *schema.ResourceData, meta interface{}) erro
 	_, err := client.Exec(dropSchemaQuery)
 
 	if err != nil {
-		log.Fatal(err)
+		log.Print(err)
 		return err
 	}
 

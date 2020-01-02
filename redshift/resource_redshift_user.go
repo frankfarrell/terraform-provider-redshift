@@ -122,7 +122,7 @@ func resourceRedshiftUserCreate(d *schema.ResourceData, meta interface{}) error 
 		} else if v.(string) == "RESTRICTED" {
 			createStatement += " SYSLOG ACCESS RESTRICTED "
 		} else {
-			log.Fatalf("%v is not a valid value for SYSLOG ACCESS", v)
+			log.Printf("%v is not a valid value for SYSLOG ACCESS", v)
 			panic(v.(string))
 		}
 	}
@@ -144,7 +144,7 @@ func resourceRedshiftUserCreate(d *schema.ResourceData, meta interface{}) error 
 
 	if err != nil {
 		log.Print("User does not exist in pg_user_info table")
-		log.Fatal(err)
+		log.Print(err)
 		return err
 	}
 
@@ -203,7 +203,7 @@ func readRedshiftUser(d *schema.ResourceData, tx *sql.Tx) error {
 
 	if err != nil {
 		log.Print("Reading user does not exist")
-		log.Fatal(err)
+		log.Print(err)
 		return err
 	}
 

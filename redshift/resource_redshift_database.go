@@ -77,7 +77,7 @@ func resourceRedshiftDatabaseCreate(d *schema.ResourceData, meta interface{}) er
 	log.Print("Create database statement: " + createStatement)
 
 	if _, err := redshiftClient.Exec(createStatement); err != nil {
-		log.Fatal(err)
+		log.Print(err)
 		return err
 	}
 
@@ -88,7 +88,7 @@ func resourceRedshiftDatabaseCreate(d *schema.ResourceData, meta interface{}) er
 	err := redshiftClient.QueryRow("SELECT datid FROM pg_database_info WHERE datname = $1", d.Get("database_name").(string)).Scan(&datid)
 
 	if err != nil {
-		log.Fatal(err)
+		log.Print(err)
 		return err
 	}
 
@@ -118,7 +118,7 @@ func readRedshiftDatabase(d *schema.ResourceData, db *sql.DB) error {
 	err := db.QueryRow("select datname, datdba, datconnlimit from pg_database_info where datid = $1", d.Id()).Scan(&databasename, &owner, &connlimit)
 
 	if err != nil {
-		log.Fatal(err)
+		log.Print(err)
 		return err
 	}
 
@@ -186,7 +186,7 @@ func resourceRedshiftDatabaseDelete(d *schema.ResourceData, meta interface{}) er
 	_, err := client.Exec("drop database " + d.Get("database_name").(string))
 
 	if err != nil {
-		log.Fatal(err)
+		log.Print(err)
 		return err
 	}
 
