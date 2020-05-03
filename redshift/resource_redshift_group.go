@@ -3,11 +3,12 @@ package redshift
 import (
 	"database/sql"
 	"fmt"
-	"github.com/hashicorp/terraform/helper/schema"
 	"log"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/hashicorp/terraform/helper/schema"
 )
 
 // https://docs.aws.amazon.com/redshift/latest/dg/r_CREATE_GROUP.html
@@ -220,7 +221,7 @@ func resourceRedshiftGroupDelete(d *schema.ResourceData, meta interface{}) error
 	client := meta.(*Client).db
 
 	//We need to drop all privileges and default privileges
-	rows, schemasError := client.Query("select nspname from pg_namespace")
+	rows, schemasError := client.Query("select nspname from pg_namespace where nspname not like 'pg_temp_%'")
 	defer rows.Close()
 	if schemasError != nil {
 		return schemasError
@@ -229,10 +230,12 @@ func resourceRedshiftGroupDelete(d *schema.ResourceData, meta interface{}) error
 	for rows.Next() {
 		var schemaName string
 		err := rows.Scan(&schemaName)
+		log.Printf("[DEBUG] Revoking permissions from schemaName %s", schemaName)
 		if err != nil {
 			//Im not sure how this can happen
 			return err
 		}
+
 		client.Exec("REVOKE ALL ON ALL TABLES IN SCHEMA " + schemaName + " FROM GROUP " + d.Get("group_name").(string))
 		client.Exec("ALTER DEFAULT PRIVILEGES IN SCHEMA " + schemaName + " REVOKE ALL ON TABLES FROM GROUP " + d.Get("group_name").(string) + " CASCADE")
 	}

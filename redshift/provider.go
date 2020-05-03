@@ -25,6 +25,7 @@ func Provider() terraform.ResourceProvider {
 				Type:        schema.TypeString,
 				Description: "master password",
 				Required:    true,
+				Sensitive:   true,
 			},
 			"port": {
 				Type:        schema.TypeString,
