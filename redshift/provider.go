@@ -2,9 +2,10 @@ package redshift
 
 import (
 	"fmt"
+	"log"
+
 	"github.com/hashicorp/terraform/helper/schema"
 	"github.com/hashicorp/terraform/terraform"
-	"log"
 )
 
 func Provider() terraform.ResourceProvider {
@@ -24,6 +25,7 @@ func Provider() terraform.ResourceProvider {
 				Type:        schema.TypeString,
 				Description: "master password",
 				Required:    true,
+				Sensitive:   true,
 			},
 			"port": {
 				Type:        schema.TypeString,

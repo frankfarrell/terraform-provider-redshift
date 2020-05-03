@@ -3,10 +3,11 @@ package redshift
 import (
 	"database/sql"
 	"fmt"
-	"github.com/hashicorp/terraform/helper/schema"
 	"log"
 	"strings"
 	"time"
+
+	"github.com/hashicorp/terraform/helper/schema"
 )
 
 func redshiftUser() *schema.Resource {
@@ -26,8 +27,9 @@ func redshiftUser() *schema.Resource {
 				Required: true,
 			},
 			"password": { //Can we read this back from the db? If not hwo can we tell if its changed? Do we need to use md5hash?
-				Type:     schema.TypeString,
-				Optional: true,
+				Type:      schema.TypeString,
+				Optional:  true,
+				Sensitive: true,
 			},
 			"valid_until": {
 				Type:     schema.TypeString,
