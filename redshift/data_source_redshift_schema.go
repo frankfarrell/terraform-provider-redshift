@@ -31,7 +31,7 @@ func dataSourceRedshiftSchemaReadByName(d *schema.ResourceData, meta interface{}
 		owner int
 	)
 
-	name := d.Get("name").(string)
+	name := d.Get("schema_name").(string)
 	redshiftClient := meta.(*Client).db
 
 	err := redshiftClient.QueryRow("select oid, nspowner from pg_namespace where nspname = $1", name).Scan(&oid, &owner)
