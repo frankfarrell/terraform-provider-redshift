@@ -7,11 +7,6 @@ import (
 	"github.com/hashicorp/terraform/helper/schema"
 )
 
-/*
-TODO
-Add database property. This will require a new connection since you can't have databse agnostic connections in redshift/postgres
-*/
-
 func dataSourceRedshiftSchema() *schema.Resource {
 	return &schema.Resource{
 		Read: dataSourceRedshiftSchemaReadByName,
