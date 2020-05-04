@@ -1,6 +1,11 @@
 TEST?=$$(go list ./... |grep -v 'vendor')
 GOFMT_FILES?=$$(find . -name '*.go' |grep -v vendor)
 
+VERSION=v0.0.2
+SHORT_GIT_SHA:=$(shell git rev-parse HEAD | cut -c-7)
+
+BIN_NAME=terraform-provider-redshift_$(VERSION)-gh-$(SHORT_GIT_SHA)
+
 default: build
 
 build: fmtcheck
@@ -37,5 +42,13 @@ test-compile:
 		exit 1; \
 	fi
 	go test -c $(TEST) $(TESTARGS)
+
+build-dist:
+	GOOS=darwin GOARCH=amd64 go build -o "dist/darwin/amd64/$(BIN_NAME)"
+	GOOS=linux GOARCH=amd64 go build -o "dist/linux/amd64/$(BIN_NAME)"
+
+gh-dist: build-dist
+	aws s3 cp "dist/darwin/amd64/$(BIN_NAME)" "s3://grnhse-vpc-assets/terraform-plugins/darwin_amd64/$(BIN_NAME)"
+	aws s3 cp "dist/linux/amd64/$(BIN_NAME)" "s3://grnhse-vpc-assets/terraform-plugins/linux_amd64/$(BIN_NAME)"
 
 .PHONY: build test testacc vet fmt fmtcheck errcheck test-compile
