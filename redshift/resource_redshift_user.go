@@ -26,7 +26,7 @@ func redshiftUser() *schema.Resource {
 				Type:     schema.TypeString,
 				Required: true,
 			},
-			"password": { //Can we read this back from the db? If not hwo can we tell if its changed? Do we need to use md5hash?
+			"password": { //Can we read this back from the db? If not how can we tell if its changed? Do we need to use md5hash?
 				Type:      schema.TypeString,
 				Optional:  true,
 				Sensitive: true,
