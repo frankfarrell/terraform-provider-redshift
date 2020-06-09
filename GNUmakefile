@@ -38,4 +38,7 @@ test-compile:
 	fi
 	go test -c $(TEST) $(TESTARGS)
 
-.PHONY: build test testacc vet fmt fmtcheck errcheck test-compile
+docker:
+	docker build -t frankfarrell/terraform-redshift:latest .
+
+.PHONY: build test testacc vet fmt fmtcheck errcheck test-compile docker
