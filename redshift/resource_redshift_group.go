@@ -148,6 +148,7 @@ func readRedshiftGroup(d *schema.ResourceData, tx *sql.Tx) error {
 		for _, i := range userIdsAsString {
 			j, err := strconv.Atoi(i)
 			if err != nil {
+				panic(i)
 				panic(err)
 			}
 			userIdsAsInt = append(userIdsAsInt, j)
