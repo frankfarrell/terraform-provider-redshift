@@ -141,7 +141,7 @@ func readRedshiftGroup(d *schema.ResourceData, tx *sql.Tx) error {
 
 	//Notes on postgres array types https://gist.github.com/adharris/4163702, eg startying with underscore _int4
 
-	if users.Valid {
+	if users.Valid && users.String != "" {
 		var userIdsAsString = strings.Split(users.String[1:len(users.String)-1], ",")
 		var userIdsAsInt = []int{}
 
