@@ -186,4 +186,4 @@ the release.  Add the compiled binaries and publish the release.
 
 [installing_plugin]: https://www.terraform.io/docs/extend/how-terraform-works.html#implied-local-mirror-directories
 
-[latest_release]: https://github.com/frankfarrell/terraform-provider-redshift/releases/tag/0.0.2
+[latest_release]: https://github.com/frankfarrell/terraform-provider-redshift/releases/tag/1.0.0

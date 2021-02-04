@@ -1,5 +1,28 @@
 # CHANGELOG
 
+## 1.0.0
+
+ - Don't include binaries in version control (Raymond Berg)
+ - Improve version tooling (Raymond Berg)
+ - Add support for terraform 0.12 (Raymond Berg)
+ - Merge pull request #1 from raymondberg/master (Raymond Berg)
+ - Linter fixes on redshift schema group (Raymond Berg)
+ - Fix property name (Orion Delwaterman)
+ - Remove copy/pasted comment (Orion Delwaterman)
+ - Add schema data source (Orion Delwaterman)
+ - Set passwords as sensitive (Orion Delwaterman)
+ - Change log.fatal to log.print (sam.corzine)
+ - fix location of thrift (Orion Delwaterman)
+ - chore: Update go import in main.go (frankfarrell)
+ - Restrict redshift_group_schema_privilege on system schemas (Ryan Carlson)
+ - Add support for granting access to system schemas (Ryan Carlson)
+ - Fix issues with schema level permissions (Ryan Carlson)
+ - Add support for managing schema GRANT for CREATE, USAGE (Ryan Carlson)
+ - Upgrade dependencies, switch from govendor to Go Modules (Jeppe Fihl-Pearson)
+ - chore: Fix typo in USER resource in readme (frankfarrell)
+ - fix grant all privilege redshift query (Mijail Gomez)
+
+
 ## v0.0.2
 
  - chore: release version 0.0.2 (frankfarrell)
