@@ -119,7 +119,7 @@ func resourceRedshiftSchemaGroupPrivilegeCreate(d *schema.ResourceData, meta int
 	grants := validateGrants(d)
 	schemaGrants := validateSchemaGrants(d)
 
-	if len(grants) == 0 && len(schemaGrants) == 0  {
+	if len(grants) == 0 && len(schemaGrants) == 0 {
 		tx.Rollback()
 		return NewError("Must have at least 1 privilege")
 	}
@@ -203,8 +203,8 @@ func resourceRedshiftSchemaGroupPrivilegeRead(d *schema.ResourceData, meta inter
 
 func readRedshiftSchemaGroupPrivilege(d *schema.ResourceData, tx *sql.Tx) error {
 	var (
-		usagePrivilege		bool
-		createPrivilege		bool
+		usagePrivilege      bool
+		createPrivilege     bool
 		selectPrivilege     bool
 		updatePrivilege     bool
 		insertPrivilege     bool
@@ -276,7 +276,7 @@ func resourceRedshiftSchemaGroupPrivilegeUpdate(d *schema.ResourceData, meta int
 	grants := validateGrants(d)
 	schemaGrants := validateSchemaGrants(d)
 
-	if len(grants) == 0 && len(schemaGrants) == 0  {
+	if len(grants) == 0 && len(schemaGrants) == 0 {
 		tx.Rollback()
 		return NewError("Must have at least 1 privilege")
 	}
