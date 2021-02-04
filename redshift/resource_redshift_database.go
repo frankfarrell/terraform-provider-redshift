@@ -6,9 +6,10 @@ package redshift
 
 import (
 	"database/sql"
-	"github.com/hashicorp/terraform/helper/schema"
 	"log"
 	"time"
+
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
 func redshiftDatabase() *schema.Resource {
