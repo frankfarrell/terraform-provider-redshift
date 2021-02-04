@@ -16,3 +16,6 @@ terraform-provider-redshift
 #Intellij
 *.iml
 .idea
+
+# Don't include binaries in version control
+dist/
