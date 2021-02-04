@@ -3,11 +3,12 @@ package redshift
 import (
 	"database/sql"
 	"fmt"
-	"github.com/hashicorp/terraform/helper/schema"
 	"log"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
 // https://docs.aws.amazon.com/redshift/latest/dg/r_CREATE_GROUP.html
