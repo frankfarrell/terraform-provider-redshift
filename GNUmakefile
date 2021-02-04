@@ -3,6 +3,9 @@ GOFMT_FILES?=$$(find . -name '*.go' |grep -v vendor)
 
 default: build
 
+dist: fmtcheck build test testacc vet
+	@scripts/dist.sh
+
 build: fmtcheck
 	go install
 
@@ -29,6 +32,9 @@ fmtcheck:
 
 errcheck:
 	@sh -c "'$(CURDIR)/scripts/errcheck.sh'"
+
+release: dist
+	@scripts/release.sh
 
 test-compile:
 	@if [ "$(TEST)" = "./..." ]; then \
