@@ -13,18 +13,24 @@ Currently supports users, groups, schemas and databases. You can set privileges 
 Note that schemas are the lowest level of granularity here, tables should be created by some other tool, for instance flyway. 
 
 # Get it:
+
+1. Navigate to the [latest release][latest_release] and download the applicable
+   plugin binary.
+1. [Add to terraform plugins directory][installing_plugin] installed
+1. Run `terraform init` to register the plugin in your project
+
+
+## Legacy download links (0.0.2)
+
 Download for amd64 (for other architectures and OSes you can build from source as descibed below)
-* [Windows](https://github.com/frankfarrell/terraform-provider-redshift/raw/master/dist/windows/amd64/terraform-provider-redshift_v0.0.2_x4.exe)
-* [Linux](https://github.com/frankfarrell/terraform-provider-redshift/raw/master/dist/linux/amd64/terraform-provider-redshift_v0.0.2_x4)
-* [Mac](https://github.com/frankfarrell/terraform-provider-redshift/raw/master/dist/darwin/amd64/terraform-provider-redshift_v0.0.2_x4)
+* [Windows](https://github.com/frankfarrell/terraform-provider-redshift/raw/cff73548b/dist/windows/amd64/terraform-provider-redshift_v0.0.2_x4.exe)
+* [Linux](https://github.com/frankfarrell/terraform-provider-redshift/raw/cff73548b/dist/linux/amd64/terraform-provider-redshift_v0.0.2_x4)
+* [Mac](https://github.com/frankfarrell/terraform-provider-redshift/raw/cff73548b/dist/darwin/amd64/terraform-provider-redshift_v0.0.1_x4)
 
-Add to terraform plugins directory: https://www.terraform.io/docs/configuration/providers.html#third-party-plugins
-
-You wll need to run `terraform init to download install the plugin from here`
-
-## Examples: 
+## Examples:
 
 Provider configuration
+
 ```
 provider redshift {
   "url" = "localhost",
@@ -122,30 +128,62 @@ resource "redshift_user" "testuser"{
 
 ## Things to note
 ### Limitations
-For authoritative limitations, please see the Redshift documentations. 
-1) You cannot delete the database you are currently connected to. 
+For authoritative limitations, please see the Redshift documentations.
+1) You cannot delete the database you are currently connected to.
 2) You cannot set table specific privileges since this provider is table agnostic (for now, if you think it would be feasible to manage tables let me know)
 3) On importing a user, it is impossible to read the password (or even the md hash of the password, since Redshift restricts access to pg_shadow)
 
 ### I usually connect through an ssh tunnel, what do I do?
 The easiest thing is probably to update your hosts file so that the url resolves to localhost
 
-## Contributing: 
+## Contributing:
 
 ### Prequisites to development
 1. Go installed
 2. Terraform installed locally
 
-### Building: 
-1. Run `go build -o terraform-provider-redshift_v0.0.1_x4.exe`. You will need to tweak this with GOOS and GOARCH if you are planning to build it for different OSes and architectures
-2. Add to terraform plugins directory: https://www.terraform.io/docs/configuration/providers.html#third-party-plugins
+### Building
+Run `make dist` to generate binaries for the supported os/architectures. This
+process relies on GNUMake and bash, but you can always fallback to generating
+your own binaries with `go build -o your-binary-here`.
 
-You can debug crudely by setting the TF_LOG env variable to DEBUG. Eg 
+Once generated, you can add the binary to your terraform plugins directory to
+get it working. (e.g.
+terraform.d/linux/amd64/terraform-provider-redshift_vblah) Note that the prefix
+of the binary must match, and follow guidelines for [Terraform
+directories][installing_plugin]
+
+After installing the plugin you can debug crudely by setting the TF_LOG env
+variable to DEBUG. Eg
+
 ```
 $ TF_LOG=DEBUG terraform apply
 ```
 
-## TODO 
+### Releasing
+If you are cutting a new release, update the `VERSION` file to the new release
+number prior to running `make release`. You will be prompted for the prior
+version to auto-generate a changelog entry. Review the diffs in CHANGELOG.md
+before committing.
+
+Generate binaries hr each system by running `make dist`. Once gathered,
+add a final tag to mark the github SHA for the release:
+
+```
+git tag -m $(cat VERSION) $(cat VERSION)
+git push $(cat VERSION)
+```
+
+Navigate to the [project
+tag](https://github.com/frankfarrell/terraform-provider-redshift/tags) to edit
+the release.  Add the compiled binaries and publish the release.
+
+
+## TODO
 1. Database property for Schema
 2. Schema privileges on a per user basis
 3. Add privileges for languages and functions
+
+[installing_plugin]: https://www.terraform.io/docs/extend/how-terraform-works.html#implied-local-mirror-directories
+
+[latest_release]: https://github.com/frankfarrell/terraform-provider-redshift/releases/tag/0.0.2
