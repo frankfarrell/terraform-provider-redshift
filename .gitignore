@@ -19,3 +19,5 @@ terraform-provider-redshift
 
 # Don't include binaries in version control
 dist/
+
+goreleaser
