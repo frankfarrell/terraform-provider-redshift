@@ -178,6 +178,18 @@ Navigate to the [project
 tag](https://github.com/frankfarrell/terraform-provider-redshift/tags) to edit
 the release.  Add the compiled binaries and publish the release.
 
+### Terraform Registry
+
+To add this to the/a terraform registry, install gorelease, ensure you have a GPG
+for signing the binaries (you'll need the key ID) and a Github Token with public_repo
+access. All of this is documented in the [Terraform Registry
+guide](https://www.terraform.io/docs/registry/providers/publishing.html)
+
+Publishing is as easy as running the following:
+
+```
+GPG_FINGERPRINT=YOUR_GPG_KEY_ID GITHUB_TOKEN=YOUR_GITHUB_TOKEN ./bin/goreleaser release --rm-dist
+```
 
 ## TODO
 1. Database property for Schema
