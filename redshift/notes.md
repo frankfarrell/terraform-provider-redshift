@@ -1,10 +1,11 @@
-To see all permissions a user has: 
+To see all permissions a user has:
 https://stackoverflow.com/questions/18741334/how-do-i-view-grants-on-redshift
 
-SELECT * 
-FROM 
+```sql
+SELECT *
+FROM
     (
-    SELECT 
+    SELECT
         schemaname
         ,objectname
         ,usename
@@ -26,7 +27,7 @@ FROM
     )
 --WHERE (sel = true or ins = true or upd = true or del = true or ref = true)
 WHERE usename = 'mercury';
+```
 
-
-I could follow the xample here where it generates a password and encrypts in keybase: 
+I could follow the example here where it generates a password and encrypts in keybase:
 https://github.com/terraform-providers/terraform-provider-aws/blob/master/aws/resource_aws_iam_user_login_profile.go
