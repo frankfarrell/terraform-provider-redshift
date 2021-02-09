@@ -1,0 +1,28 @@
+name: Go project
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+
+  format_test_and_build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Set up Go
+      uses: actions/setup-go@v2
+      with:
+        go-version: 1.15
+
+    - name: Check formatting
+      run: sh -c ./scripts/gofmtcheck.sh
+
+    - name: Run the tests
+      run: go test -v ./redshift
+
+    - name: Build
+      run: go install
