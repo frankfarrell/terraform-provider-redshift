@@ -1,0 +1,6 @@
+(*github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema.ResourceData).Set
+(*database/sql.DB).Close
+(*database/sql.DB).Exec
+(*database/sql.Rows).Close
+(*database/sql.Tx).Commit
+(*database/sql.Tx).Rollback

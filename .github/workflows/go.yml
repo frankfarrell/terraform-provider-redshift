@@ -24,5 +24,8 @@ jobs:
     - name: Run the tests
       run: go test -v ./redshift
 
+    - name: Run errcheck
+      run: make errcheck
+
     - name: Build
       run: go install

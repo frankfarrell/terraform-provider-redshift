@@ -9,9 +9,7 @@ if ! which errcheck > /dev/null; then
 fi
 
 err_files=$(errcheck -ignoretests \
-                     -ignore 'github.com/hashicorp/terraform/helper/schema:Set' \
-                     -ignore 'bytes:.*' \
-                     -ignore 'io:Close|Write' \
+                     -exclude errcheck_excludes.txt \
                      $(go list ./...| grep -v /vendor/))
 
 if [[ -n ${err_files} ]]; then
@@ -21,4 +19,5 @@ if [[ -n ${err_files} ]]; then
     exit 1
 fi
 
+echo "Found no errors not included in errcheck_excludes.txt"
 exit 0
