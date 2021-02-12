@@ -14,18 +14,13 @@ Note that schemas are the lowest level of granularity here. Tables should be cre
 
 # Get it:
 
-1. Navigate to the [latest release][latest_release] and download the applicable
-   plugin binary.
+1. Navigate to the [releases] and download the desired plugin binary, likely the latest
 1. [Add to terraform plugins directory][installing_plugin] installed
 1. Run `terraform init` to register the plugin in your project
 
-
 ## Legacy download links (0.0.2)
 
-Download for amd64 (for other architectures and OSes you can build from source as descibed below)
-* [Windows](https://github.com/frankfarrell/terraform-provider-redshift/raw/cff73548b/dist/windows/amd64/terraform-provider-redshift_v0.0.2_x4.exe)
-* [Linux](https://github.com/frankfarrell/terraform-provider-redshift/raw/cff73548b/dist/linux/amd64/terraform-provider-redshift_v0.0.2_x4)
-* [Mac](https://github.com/frankfarrell/terraform-provider-redshift/raw/cff73548b/dist/darwin/amd64/terraform-provider-redshift_v0.0.1_x4)
+See [original fork](https://github.com/frankfarrell/terraform-provider-redshift) for older download links
 
 ## Examples:
 
@@ -195,5 +190,4 @@ Navigate to the [project tag](https://github.com/coopergillan/terraform-provider
 3. Add privileges for languages and functions
 
 [installing_plugin]: https://www.terraform.io/docs/extend/how-terraform-works.html#implied-local-mirror-directories
-
-[latest_release]: https://github.com/coopergillan/terraform-provider-redshift/releases/tag/1.0.0
+[releases]: https://github.com/coopergillan/terraform-provider-redshift/releases
