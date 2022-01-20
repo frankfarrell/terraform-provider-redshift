@@ -46,9 +46,11 @@ test-compile:
 build-dist:
 	GOOS=darwin GOARCH=amd64 go build -o "dist/darwin/amd64/$(BIN_NAME)"
 	GOOS=linux GOARCH=amd64 go build -o "dist/linux/amd64/$(BIN_NAME)"
+	GOOS=darwin GOARCH=arm64 go build -o "dist/darwin/arm64/$(BIN_NAME)"
 
 gh-dist: build-dist
 	aws s3 cp "dist/darwin/amd64/$(BIN_NAME)" "s3://grnhse-vpc-assets/terraform-plugins/darwin_amd64/$(BIN_NAME)"
 	aws s3 cp "dist/linux/amd64/$(BIN_NAME)" "s3://grnhse-vpc-assets/terraform-plugins/linux_amd64/$(BIN_NAME)"
+	aws s3 cp "dist/darwin/arm64/$(BIN_NAME)" "s3://grnhse-vpc-assets/terraform-plugins/darwin_arm64/$(BIN_NAME)"
 
 .PHONY: build test testacc vet fmt fmtcheck errcheck test-compile
