@@ -425,7 +425,7 @@ func resourceRedshiftUserDelete(d *schema.ResourceData, meta interface{}) error 
 	}
 
 	//We need to drop all privileges and default privileges
-	rows, schemasError := redshiftClient.Query("select nspname from pg_namespace")
+	rows, schemasError := redshiftClient.Query("select nspname from pg_namespace where nspowner != 1")
 	defer rows.Close()
 	if schemasError != nil {
 		return schemasError
