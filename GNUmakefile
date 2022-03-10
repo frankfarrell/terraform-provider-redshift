@@ -1,7 +1,9 @@
 TEST?=$$(go list ./... |grep -v 'vendor')
 GOFMT_FILES?=$$(find . -name '*.go' |grep -v vendor)
 
-VERSION=v0.0.2
+VERSION=v0.0.3
+PLATFORM ?= $(shell uname -s | tr '[:upper:]' '[:lower:]')
+ARCH ?= $(shell arch)
 SHORT_GIT_SHA:=$(shell git rev-parse HEAD | cut -c-7)
 
 BIN_NAME=terraform-provider-redshift_$(VERSION)-gh-$(SHORT_GIT_SHA)
@@ -53,4 +55,12 @@ gh-dist: build-dist
 	aws s3 cp "dist/linux/amd64/$(BIN_NAME)" "s3://grnhse-vpc-assets/terraform-plugins/linux_amd64/$(BIN_NAME)"
 	aws s3 cp "dist/darwin/arm64/$(BIN_NAME)" "s3://grnhse-vpc-assets/terraform-plugins/darwin_arm64/$(BIN_NAME)"
 
-.PHONY: build test testacc vet fmt fmtcheck errcheck test-compile
+install-local-plugin: build-dist
+	mkdir -p $(HOME)/.terraform.d/plugins/tf-registry.greenhouse.dev/grnhse/redshift/$(VERSION)/$(PLATFORM)_$(ARCH)/
+	mkdir -p $(HOME)/.terraform.d/plugin-cache
+	cp dist/$(PLATFORM)/$(ARCH)/$(BIN_NAME) $(HOME)/.terraform.d/plugins/tf-registry.greenhouse.dev/grnhse/redshift/$(VERSION)/$(PLATFORM)_$(ARCH)/$(BIN_NAME)
+
+clear-local-plugins:
+	rm -rf $(HOME)/.terraform.d/plugins/tf-registry.greenhouse.dev/grnhse/redshift
+
+.PHONY: build test testacc vet fmt fmtcheck errcheck test-compile install-local-plugin clear-local-plugin
