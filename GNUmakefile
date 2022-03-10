@@ -60,7 +60,7 @@ install-local-plugin: build-dist
 	mkdir -p $(HOME)/.terraform.d/plugin-cache
 	cp dist/$(PLATFORM)/$(ARCH)/$(BIN_NAME) $(HOME)/.terraform.d/plugins/tf-registry.greenhouse.dev/grnhse/redshift/$(VERSION)/$(PLATFORM)_$(ARCH)/$(BIN_NAME)
 
-clear-local-plugins:
+clear-local-plugin:
 	rm -rf $(HOME)/.terraform.d/plugins/tf-registry.greenhouse.dev/grnhse/redshift
 
 .PHONY: build test testacc vet fmt fmtcheck errcheck test-compile install-local-plugin clear-local-plugin
