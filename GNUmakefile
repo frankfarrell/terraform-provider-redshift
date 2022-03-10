@@ -6,7 +6,11 @@ PLATFORM ?= $(shell uname -s | tr '[:upper:]' '[:lower:]')
 ARCH ?= $(shell arch)
 SHORT_GIT_SHA:=$(shell git rev-parse HEAD | cut -c-7)
 
-BIN_NAME=terraform-provider-redshift_$(VERSION)-gh-$(SHORT_GIT_SHA)
+NAME=terraform-provider-redshift
+BIN_NAME=$(NAME)_$(VERSION)-gh-$(SHORT_GIT_SHA)
+FULLNAME=$(NAME)_$(VERSION)
+GOPRIVATE=github.com/grnhse
+
 
 default: build
 
@@ -62,5 +66,30 @@ install-local-plugin: build-dist
 
 clear-local-plugin:
 	rm -rf $(HOME)/.terraform.d/plugins/tf-registry.greenhouse.dev/grnhse/redshift
+
+.PHONY: terraform-provider-publisher
+terraform-provider-publisher:
+ifeq (, $(shell terraform-provider-publisher -version))
+	@go install github.com/grnhse/terraform-provider-publisher@latest
+else
+	@echo "terraform-provider-publisher already installed"
+endif
+
+.PHONY: publish-darwin-amd64
+publish-darwin-amd64: build terraform-provider-publisher
+	terraform-provider-publisher publish dist/darwin/amd64/$(BIN_NAME)
+
+.PHONY: publish-darwin-arm64
+publish-darwin-arm64: build terraform-provider-publisher
+	terraform-provider-publisher publish dist/darwin/arm64/$(BIN_NAME)
+
+.PHONY: publish-linux
+publish-linux: build terraform-provider-publisher
+	terraform-provider-publisher publish dist/linux/amd64/$(BIN_NAME)
+
+.PHONY: publish
+publish: publish-darwin-arm64 publish-darwin-amd64 publish-linux
+	git tag $(VERSION)
+	git push --tags
 
 .PHONY: build test testacc vet fmt fmtcheck errcheck test-compile install-local-plugin clear-local-plugin
